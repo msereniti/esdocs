@@ -1,0 +1,33 @@
+.es-docs__logger-container {
+  overflow: auto;
+  max-height: 300px;
+}
+.es-docs__logger-row {
+  margin: 0;
+  border-top: var(--border-width) solid var(--console-default-border-color);
+  padding: 3px 5px 3px 20px;
+  color: var(--primary-text-color);
+}
+.es-docs__logger-row-level-system {
+  color: var(--secondary-text-color);
+  font-style: italic;
+}
+.es-docs__logger-row-level-default {
+}
+.es-docs__logger-row-level-verbose {
+  border-color: var(--console-verbose-border-color);
+  color: var(--console-verbose-color);
+  background-color: var(--console-verbose-background-color);
+}
+.es-docs__logger-row-level-info {
+}
+.es-docs__logger-row-level-warning {
+  border-color: var(--console-warning-border-color);
+  color: var(--console-warning-color);
+  background-color: var(--console-warning-background-color);
+}
+.es-docs__logger-row-level-error {
+  border-color: var(--console-error-border-color);
+  color: var(--console-error-color);
+  background-color: var(--console-error-background-color);
+}

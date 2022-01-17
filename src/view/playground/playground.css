@@ -1,0 +1,51 @@
+.es-docs__playground {
+  border: var(--border-width) solid var(--border-color);
+  width: 400px;
+  min-height: 20px;
+}
+.es-docs__playground-runtime {
+  padding: 10px;
+  background-color: var(--runtime-background-color);
+}
+.es-docs__playground-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border-top: var(--border-width) dashed var(--border-color);
+}
+.es-docs__playground-control-button {
+  color: var(--secondary-text-color);
+  background-color: var(--control-background-color);
+  border-color: transparent;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 5px;
+  border-style: solid;
+}
+.es-docs__playground-control-button:hover {
+  background-color: var(--control-hover-background-color);
+}
+.es-docs__playground-control-button:active,
+.es-docs__playground-control-button:focus {
+  border-color: var(--control-active-border-color);
+  outline: none;
+}
+.es-docs__playground-control-language-label {
+  color: var(--secondary-text-color);
+  padding: 3px 6px;
+  border: var(--border-width) dotted var(--border-color);
+  border-radius: 5px;
+}
+.es-docs__playground-control-language-label:before {
+  content: '.';
+}
+.es-docs__playground-console {
+}
+.es-docs__playground-sources {
+  padding: 10px;
+  border-top: var(--border-width) dashed var(--border-color);
+  font-size: 1.1em;
+}

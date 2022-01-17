@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "target": "ES2020",
+    "moduleResolution": "node",
+    "lib": ["es2019", "DOM"],
+    "typeRoots": ["./typings", "./node_modules/@types"],
+    "jsx": "preserve",
+
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    "allowJs": true,
+    "strict": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": "./"
+  },
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
+}
