@@ -12,5 +12,13 @@ export const reactIntegration: EsDocsFrameworkIntegration = {
       from: 'react-dom',
     },
   ],
-  init: `(lastEvaluatedExpression, hostElement) => { render(lastEvaluatedExpression, hostElement); }`,
+  handlers: {
+    js: `(expression, hostElement) => { render(expression, hostElement); }`,
+    css: `(expression, hostElement) => { 
+           const styleSheet = document.createElement("style");
+           styleSheet.type = "text/css";
+           styleSheet.innerText = expression;
+           hostElement.appendChild(styleSheet);
+         }`,
+  },
 };

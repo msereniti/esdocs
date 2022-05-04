@@ -10,10 +10,9 @@ export type EsDocsBundlerIntegrationParams = {
 export type EsDocsBundlerIntegrationResult = {
   id: ChunkId;
   chunkFilePath: FilePath;
+  hasSourceMaps: boolean;
 }[];
-export type EsDocsBundlerIntegration = (
-  params: EsDocsBundlerIntegrationParams
-) => Promise<EsDocsBundlerIntegrationResult>;
+export type EsDocsBundlerIntegration = (params: EsDocsBundlerIntegrationParams) => Promise<EsDocsBundlerIntegrationResult>;
 
 export const outOfTheBoxBundlers = {
   esbuild: esbuildIntegration,

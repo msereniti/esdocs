@@ -9,7 +9,9 @@ export type EsDocsFrameworkIntegration = {
     from: string;
   }[];
   external?: string[];
-  init: `(lastEvaluatedExpression, hostElement) => {${Code}}`;
+  handlers: {
+    [fileExtention: string]: `(expression, hostElement) => {${Code}}`;
+  };
 };
 
 export const outOfTheBoxFrameworks = {

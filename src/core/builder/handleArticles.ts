@@ -1,5 +1,9 @@
+import { Content as MdxAstNode, Root as MdxAstRoot } from '@mdx-js/mdx/lib/plugin/remark-mark-and-unravel';
+import { Code as MdxCodeBlockNode } from 'mdast';
+
+import { PlaygroundCodeDefinition, PlaygroundCodeDefinitionString } from '../../common/definitions';
 import { uniqueId } from '../utils/uniqueId';
-import { TraverseCollections } from './definitions';
+import { Playground, PlaygroundFile, TraverseCollections } from './definitions';
 
 const linearUnshift = <T extends any[]>(arr: T, toUnshift: T) => {
   arr.reverse();
@@ -9,77 +13,99 @@ const linearUnshift = <T extends any[]>(arr: T, toUnshift: T) => {
   return arr;
 };
 
-const createPlaygroundForCodeContent = ({
-  id,
-  language,
-  content,
-  framework,
-}: {
-  id: string;
-  language: string;
-  content: string;
-  framework: string;
-}) =>
-  JSON.stringify({
+const createPlaygroundCodeDefinition = (playgroundId: string) => {
+  const definition: PlaygroundCodeDefinition = {
     __type: 'EsDocsPlayground',
-    id,
-    language,
-    content,
-    framework,
-  });
+    playgroundId,
+  };
 
-export const getArticlesHandler =
-  (sourceFilePath: string, traverseCollections: TraverseCollections) =>
-  () =>
-  (markdownAst: any) => {
-    const toTraverse = [...markdownAst.children].flat();
+  return JSON.stringify(definition) as PlaygroundCodeDefinitionString;
+};
 
-    while (toTraverse.length > 0) {
-      const block = toTraverse.pop();
+const mapMarkdownChildren = (children: MdxAstNode[], traverseCollections: TraverseCollections, sourceFilePath: string) => {
+  const result: MdxAstNode[] = [];
 
-      const isCode = block.type === 'code';
-      const isPureCode =
-        isCode && block.meta && block.meta.split(' ').includes('pure');
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    let typeToHandle: 'code' | 'heading' | null = null;
+    let blockAdded = false;
 
-      if (isCode) {
-        traverseCollections.programmingLanguages.push(block.lang);
-      }
-      if (isCode && !isPureCode) {
-        const id = uniqueId('playground');
-        const language = block.lang;
-        const content = block.value;
-        /* TBD: get real framework */
-        const framework = 'react';
+    if (child.type === 'code') {
+      typeToHandle = 'code';
+    } else if (
+      child.type === 'heading' &&
+      child.children?.[0] &&
+      'value' in child.children[0] &&
+      child.children[0].value &&
+      !traverseCollections.articlesLabelsByPath[sourceFilePath]
+    ) {
+      typeToHandle = 'heading';
+    }
 
-        block.value = createPlaygroundForCodeContent({
-          id,
-          language,
-          content,
-          framework,
-        });
+    if (typeToHandle === 'code' && child.type === 'code') {
+      const playgroundId = uniqueId('playground');
+      const files: PlaygroundFile[] = [];
 
-        traverseCollections.playgrounds.push({
-          id,
-          content,
-          framework,
-          extension: language,
-          sourceFilePath,
-        });
-      }
+      for (; i < children.length && children[i].type === 'code'; i++) {
+        const codeBlock = children[i] as MdxCodeBlockNode;
+        const { lang: extention, value: content, meta, position } = codeBlock;
 
-      const isHeading = block.type === 'heading';
-      const isUsedAsLabel =
-        traverseCollections.articlesLabelsByPath[sourceFilePath];
-
-      if (isHeading && !isUsedAsLabel) {
-        const content = block.children?.[0]?.value;
-
-        if (typeof content === 'string') {
-          traverseCollections.articlesLabelsByPath[sourceFilePath] = content;
+        if (!position) {
+          console.error(codeBlock);
+          throw new Error(`Unexpectedly markdown token #${i} from ${sourceFilePath} was parsed without token position. Full token ast is output above.`);
         }
+
+        const name = meta ?? null;
+
+        files.push({
+          playgroundId,
+          content,
+          extention: extention ?? 'plain',
+          name,
+          source: {
+            path: sourceFilePath,
+            from: position.start,
+            to: position.end,
+          },
+        });
       }
-      if (block.children?.length > 0) {
-        linearUnshift(toTraverse, block.children.flat());
+
+      /* TBD: get real framework */
+      const framework = 'react';
+
+      const playground: Playground = {
+        id: playgroundId,
+        framework,
+        files,
+      };
+
+      result.push({
+        ...child,
+        value: createPlaygroundCodeDefinition(playground.id),
+      });
+      blockAdded = true;
+
+      traverseCollections.playgrounds.push(playground);
+    } else if (typeToHandle === 'heading' && child.type === 'heading' && 'value' in child.children[0]) {
+      const content = child.children[0].value;
+
+      if (typeof content === 'string') {
+        traverseCollections.articlesLabelsByPath[sourceFilePath] = content;
       }
     }
-  };
+
+    if (!blockAdded) {
+      if ('children' in child) {
+        child.children = mapMarkdownChildren(child.children, traverseCollections, sourceFilePath) as any;
+      }
+
+      result.push(child);
+    }
+  }
+
+  return result;
+};
+
+export const getArticlesHandler = (sourceFilePath: string, traverseCollections: TraverseCollections) => () => (markdownAst: MdxAstRoot) => {
+  markdownAst.children = mapMarkdownChildren(markdownAst.children, traverseCollections, sourceFilePath);
+};

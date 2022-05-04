@@ -4,13 +4,12 @@ import * as asyncRoutes from '@setup/navigation/loaders.js';
 import resolveUrl from '@setup/navigation/resolveUrl.json';
 import React from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import usePromise from 'react-promise-suspense';
+import usePromise from 'react-use-await';
 
 import { useLocation } from '../navigation/utils';
 import { getMdxProps } from '../utils/mdxProps';
 
-const loadArticle = (id: string) =>
-  id in asyncRoutes ? asyncRoutes[id as keyof typeof asyncRoutes]() : undefined;
+const loadArticle = (id: string) => (id in asyncRoutes ? asyncRoutes[id as keyof typeof asyncRoutes]() : undefined);
 
 const ArticleBody: React.FC<{ articleId: string }> = ({ articleId }) => {
   const articleModule = usePromise(loadArticle, [articleId]);

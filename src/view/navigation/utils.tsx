@@ -40,11 +40,7 @@ export const useLocation = () => {
   const hash = hashStart === -1 ? null : url.substring(hashStart);
   const navigateTo = mode === 'hash' ? navigateToHash : navigateToPath;
 
-  return [location, navigateTo, hash] as [
-    location: string,
-    navigateTo: (to: string) => void,
-    lash: string
-  ];
+  return [location, navigateTo, hash] as [location: string, navigateTo: (to: string) => void, lash: string];
 };
 
 // export const makeUrl = (url: string) => {
@@ -55,13 +51,7 @@ export const useLocation = () => {
 //   return url;
 // };
 
-export const Link = ({
-  children,
-  to,
-  onClick,
-  ...restProps
-}: PropsWithChildren<{ to: string }> &
-  React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+export const Link = ({ children, to, onClick, ...restProps }: PropsWithChildren<{ to: string }> & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
   const [, navigate] = useLocation();
   const { base } = useRouter();
 
@@ -70,19 +60,10 @@ export const Link = ({
 
   urlRef.current = url;
 
-  const handleClick = React.useCallback<
-    React.MouseEventHandler<HTMLAnchorElement>
-  >((event) => {
+  const handleClick = React.useCallback<React.MouseEventHandler<HTMLAnchorElement>>((event) => {
     // ignores the navigation when clicked using right mouse button or
     // by holding a special modifier key: ctrl, command, win, alt, shift
-    if (
-      event.ctrlKey ||
-      event.metaKey ||
-      event.altKey ||
-      event.shiftKey ||
-      event.button !== 0
-    )
-      return;
+    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.button !== 0) return;
 
     event.preventDefault();
     navigate(urlRef.current);

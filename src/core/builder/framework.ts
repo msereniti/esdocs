@@ -2,9 +2,7 @@ import { ensureDir, pathExists, remove } from 'fs-extra';
 
 import { outOfTheBoxFrameworks } from '../../integrations/frameworks/frameworks';
 import { resolvePath, writeFile } from '../utils/fs';
-import { recursiveReadDir } from '../utils/recursive-readdir';
 import { runBundler } from './bundler';
-import { cleanUp } from './cleanUp';
 import { tmpFilesPrefix } from './definitions';
 
 export const setupFrameworks = async (destinationPath: string) => {
@@ -94,26 +92,14 @@ export const setupFrameworks = async (destinationPath: string) => {
   const frameworksFile =
     frameworks
       .map((framework) => {
-        const init = JSON.stringify(framework.init);
-        const imports = JSON.stringify(
-          framework.dependencies
-            .map((dependency) =>
-              Array.isArray(dependency.import)
-                ? dependency.import
-                : dependency.import.name
-            )
-            .flat()
-        );
+        const init = JSON.stringify(framework.handlers);
 
-        return `export const ${framework.name} = { init: ${init}, imports: ${imports}, loadDependencies: () => import("./dependencies/${framework.name}.js") };`;
+        return `export const ${framework.name} = { handlers: ${init}, loadDependencies: () => import("./dependencies/${framework.name}.js") };`;
       })
       .join('\n') +
     '\n' +
     `const defaultExport = { ${frameworksNamesJoin} };\n` +
     'export default defaultExport;';
 
-  await writeFile(
-    resolvePath(destinationPath, 'frameworks.js'),
-    frameworksFile
-  );
+  await writeFile(resolvePath(destinationPath, 'frameworks.js'), frameworksFile);
 };

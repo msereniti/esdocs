@@ -97,20 +97,13 @@ const defaultAliases: Record<string, string> = {
   xeoracube: 'xeora',
 };
 
-const supportedProgrammingLanguagesMap = Object.fromEntries(
-  SyntaxHighlighter.Prism.supportedLanguages.map((language) => [language, true])
-);
+const supportedProgrammingLanguagesMap = Object.fromEntries(SyntaxHighlighter.Prism.supportedLanguages.map((language) => [language, true]));
 
-export const bundleProgrammingLanguagesFiles = async (
-  providedProgrammingLanguages: string[],
-  destinationPath: string
-) => {
+export const bundleProgrammingLanguagesFiles = async (providedProgrammingLanguages: string[], destinationPath: string) => {
   /** TBD: add to configuration */
   const aliases = { ...defaultAliases };
 
-  const programmingLanguages = [...new Set(providedProgrammingLanguages)].map(
-    (language) => aliases[language] || language
-  );
+  const programmingLanguages = [...new Set(providedProgrammingLanguages)].map((language) => aliases[language] || language);
 
   for (const language of programmingLanguages) {
     if (!supportedProgrammingLanguagesMap[language]) {
@@ -141,15 +134,7 @@ export const bundleProgrammingLanguagesFiles = async (
   //   )
   // );
 
-  await writeFile(
-    resolvePath(destinationPath, 'syntaxes.js'),
-    programmingLanguages
-      .map(
-        (language) =>
-          `export * as ${language} from 'refractor/lang/${language}';`
-      )
-      .join('\n')
-  );
+  await writeFile(resolvePath(destinationPath, 'syntaxes.js'), programmingLanguages.map((language) => `export * as ${language} from 'refractor/lang/${language}';`).join('\n'));
 
   const themes = ['vs', 'vs-dark'];
 

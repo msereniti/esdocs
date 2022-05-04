@@ -5,9 +5,7 @@ import { readFile } from '../utils/fs';
 import { TraverseCollections } from './definitions';
 import { getArticlesHandler } from './handleArticles';
 
-export const getMdxHandler = (
-  traverseCollections: TraverseCollections
-): EsBuildPlugin => ({
+export const getMdxHandler = (traverseCollections: TraverseCollections): EsBuildPlugin => ({
   name: 'esdocs-esbuild-mdx',
   setup: (build) => {
     build.onLoad({ filter: /\.mdx?$/ }, async (args) => {

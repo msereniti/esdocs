@@ -1,7 +1,5 @@
 .es-docs__root {
-  font-family: -apple-system, BlinkMacSystemFont, 'Apple Color Emoji',
-    'Segoe UI Emoji', 'Segoe UI Symbol', avenir, 'avenir next', helvetica, arial,
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', avenir, 'avenir next', helvetica, arial, sans-serif;
 
   color: var(--primary-text-color);
   background-color: var(--background-color);

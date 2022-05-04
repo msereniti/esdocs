@@ -7,6 +7,5 @@ Example of usage:
 ```tsx
 import { NumberInput } from './number-input';
 
-x = 1 + 1;
-<NumberInput />;
+<NumberInput />; 
 ```

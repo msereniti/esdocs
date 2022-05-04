@@ -1,15 +1,10 @@
-import jsonStringify from 'json-stringify-safe';
+import type { Message } from 'console-feed/lib/definitions/Console';
 
 import { uniqueId } from '../../core/utils/uniqueId';
 
 type DisposeSubscription = () => void;
 type LoggerId = string;
-export type Log = {
-  text: string;
-  level: 'default' | 'verbose' | 'info' | 'warning' | 'error' | 'system';
-  /** Tbd: implement css styling */
-  // chunks: { text: string; styles: string }[]
-};
+export type Log = Message;
 type LogsSubscriber = (logs: Log[]) => void;
 type LogsStore = {
   logs: {
@@ -18,26 +13,23 @@ type LogsStore = {
   subscribers: {
     [loggerId: LoggerId]: LogsSubscriber[];
   };
+  contextExecutors: {
+    [loggerId: LoggerId]: (toEval: string) => void;
+  };
 };
 type LogsApi = {
-  subscribe: (
-    loggerId: LoggerId,
-    subscriber: LogsSubscriber
-  ) => DisposeSubscription;
-  publishChanges: (loggerId: string) => void;
+  subscribe: (loggerId: LoggerId, subscriber: LogsSubscriber) => DisposeSubscription;
+  publishChanges: (loggerId: LoggerId) => void;
+
+  registerContextExecutor: (loggerId: LoggerId, executor: (toEval: string) => void) => void;
+  execute: (loggerId: LoggerId, toEval: string) => void;
 };
 
 const logsStore: LogsStore = {
   logs: {},
   subscribers: {},
+  contextExecutors: {},
 };
-
-const stringify = (...data: any[]) =>
-  data
-    .map((chunk) =>
-      typeof chunk === 'object' ? jsonStringify(chunk, null, 2) : String(chunk)
-    )
-    .join(' ');
 
 export const logsApi: LogsApi = {
   subscribe: (loggerId, subscriber) => {
@@ -46,20 +38,37 @@ export const logsApi: LogsApi = {
     subscriber([...(logsStore.logs[loggerId] || [])]);
 
     return () => {
-      logsStore.subscribers[loggerId] = logsStore.subscribers[loggerId].filter(
-        (x) => x !== subscriber
-      );
+      logsStore.subscribers[loggerId] = logsStore.subscribers[loggerId].filter((x) => x !== subscriber);
     };
   },
   publishChanges: (loggerId) => {
-    logsStore.subscribers[loggerId]?.forEach((subscriber) =>
-      subscriber([...logsStore.logs[loggerId]])
-    );
+    logsStore.subscribers[loggerId]?.forEach((subscriber) => subscriber([...logsStore.logs[loggerId]]));
+  },
+  registerContextExecutor: (loggerId, executor) => {
+    logsStore.contextExecutors[loggerId] = executor;
+  },
+  execute: (loggerId, toEval) => {
+    const executor = logsStore.contextExecutors[loggerId];
+    const executionLogger = makeLogger(loggerId);
+
+    if (!executor) {
+      throw new Error(`No context executor found for context "${loggerId}"`);
+    }
+
+    try {
+      const result = executor(toEval);
+
+      executionLogger.console.log(result);
+    } catch (error) {
+      executionLogger.console.error(error);
+    }
   },
 };
 
-type Logger = typeof console & {
+type Logger = {
   loggerId: LoggerId;
+  destruct: () => void;
+  console: typeof console;
 };
 
 export const makeLogger = (loggerId = uniqueId('logger')): Logger => {
@@ -70,14 +79,16 @@ export const makeLogger = (loggerId = uniqueId('logger')): Logger => {
   logsStore.logs[loggerId] = logsStore.logs[loggerId] || [];
 
   const addLog = (log: Log) => {
-    logsStore.logs[loggerId].push(log);
+    logsStore.logs[loggerId].push({
+      ...log,
+    });
     logsApi.publishChanges(loggerId);
   };
   const clearLogs = () => {
     logsStore.logs[loggerId] = [];
     addLog({
-      text: 'Logs were cleared',
-      level: 'system',
+      method: 'clear',
+      data: ['Console were cleared'],
     });
   };
   const countLogs = (label = 'default', setValue?: number): void => {
@@ -87,17 +98,14 @@ export const makeLogger = (loggerId = uniqueId('logger')): Logger => {
       counters[label] = setValue;
     }
     const log: Log = {
-      text: `${label}: ${counters[label]}`,
-      level: 'default',
+      data: [`${label}: ${counters[label]}`],
+      method: 'log',
     };
 
     const lastCounterLog = lastCountersLogs[loggerId];
     const lastLogIndex = logsStore.logs[loggerId].length - 1;
 
-    if (
-      lastCounterLog &&
-      logsStore.logs[loggerId][lastLogIndex] === lastCounterLog
-    ) {
+    if (lastCounterLog && logsStore.logs[loggerId][lastLogIndex] === lastCounterLog) {
       logsStore.logs[loggerId][lastLogIndex] = log;
     } else {
       logsStore.logs[loggerId].push(log);
@@ -108,127 +116,117 @@ export const makeLogger = (loggerId = uniqueId('logger')): Logger => {
   };
 
   /** TBD: full console logger implementation */
-  const handleUnimplemented = (
-    method: Exclude<keyof typeof console, 'Console'>,
-    ...args: any[]
-  ) => {
+  const handleUnimplemented = (method: Exclude<keyof typeof console, 'Console'>, ...args: any[]) => {
     addLog({
-      text: `console.${method} is not implemented in EsDocs playground console yet, so ${method} redirected to browser console as is`,
-      level: 'warning',
+      method: 'warn',
+      data: [`console.${method} is not implemented in EsDocs playground console yet, so ${method} redirected to browser console as is`],
     });
     // eslint-disable-next-line no-console
     (console[method] as any)(...args);
   };
-  const handleDeprecated = (
-    method: 'profile' | 'profileEnd' | 'timeStamp',
-    ...args: any[]
-  ) => {
+  const handleDeprecated = (method: 'profile' | 'profileEnd' | 'timeStamp', ...args: any[]) => {
     addLog({
-      text: `console.${method} is deprecated and will not be implemented in EsDocs playground console yet, so ${method} redirected to browser console as is`,
-      level: 'warning',
+      method: 'warn',
+      data: [`console.${method} is deprecated and will not be implemented in EsDocs playground console yet, so ${method} redirected to browser console as is`],
     });
     // eslint-disable-next-line no-console
     (console[method] as any)(...args);
   };
-
   const logger: Logger = {
     loggerId,
-    assert: (condition?: boolean, ...data: any[]): void => {
-      if (!condition) {
-        logger.error(...data);
-      }
+    destruct: () => {
+      delete logsStore.logs[loggerId];
     },
-    clear: (): void => {
-      clearLogs();
-    },
-    count: (label = 'default'): void => {
-      countLogs(label);
-    },
-    countReset: (label = 'default'): void => {
-      countLogs(label, 0);
-    },
-    debug: (...data: any[]): void => {
-      addLog({
-        text: stringify(...data),
-        level: 'verbose',
-      });
-    },
-    dir: (item?: any, options?: any): void => {
-      handleUnimplemented('dir', item, options);
-    },
-    dirxml: (...data: any[]): void => {
-      handleUnimplemented('dirxml', ...data);
-    },
-    error: (...data: any[]): void => {
-      addLog({
-        text: stringify(...data),
-        level: 'error',
-      });
-    },
-    group: (...data: any[]): void => {
-      handleUnimplemented('group', ...data);
-    },
-    groupCollapsed: (...data: any[]): void => {
-      handleUnimplemented('groupCollapsed', ...data);
-    },
-    groupEnd: (): void => {
-      handleUnimplemented('groupEnd');
-    },
-    info: (...data: any[]): void => {
-      addLog({
-        text: stringify(...data),
-        level: 'info',
-      });
-    },
-    log: (...data: any[]): void => {
-      addLog({
-        text: stringify(...data),
-        level: 'default',
-      });
-    },
-    table: (tabularData?: any, properties?: string[]): void => {
-      handleUnimplemented('table', tabularData, properties);
-    },
-    time: (label = 'default'): void => {
-      timers[label] = { start: Date.now(), end: undefined };
-    },
-    timeEnd: (label = 'default'): void => {
-      if (!timers[label]) {
-        logger.warn(`Timer ${label} doesn't exist`);
-      } else {
-        timers[label].end = Date.now();
+    console: {
+      assert: (condition?: boolean, ...data: any[]): void => {
+        if (!condition) logger.console.error(...data);
+      },
+      clear: (): void => {
+        clearLogs();
+      },
+      count: (label = 'default'): void => {
+        countLogs(label);
+      },
+      countReset: (label = 'default'): void => {
+        countLogs(label, 0);
+      },
+      debug: (...data: any[]): void => {
+        addLog({ method: 'debug', data });
+      },
+      dir: (item?: any, options?: any): void => {
+        handleUnimplemented('group', [item, options]);
+      },
+      dirxml: (...data: any[]): void => {
+        handleUnimplemented('group', ...data);
+      },
+      error: (...data: any[]): void => {
+        addLog({ method: 'error', data });
+      },
+      group: (...data: any[]): void => {
+        handleUnimplemented('group', ...data);
+      },
+      groupCollapsed: (...data: any[]): void => {
+        handleUnimplemented('groupCollapsed', ...data);
+      },
+      groupEnd: (): void => {
+        handleUnimplemented('groupEnd');
+      },
+      info: (...data: any[]): void => {
+        addLog({ method: 'info', data });
+      },
+      log: (...data: any[]): void => {
+        addLog({ method: 'log', data });
+      },
+      table: (tabularData?: any, properties?: string[]): void => {
+        addLog({ method: 'table', data: [tabularData, properties] });
+      },
+      time: (label = 'default'): void => {
+        addLog({ method: 'time', data: [label] });
+        timers[label] = { start: Date.now(), end: undefined };
+      },
+      timeEnd: (label = 'default'): void => {
+        if (!timers[label]) {
+          logger.console.warn(`Timer ${label} doesn't exist`);
+        } else {
+          timers[label].end = Date.now();
 
-        logger.log(`${label}: ${timers[label].end! - timers[label].start} ms`);
-      }
-    },
-    timeLog: (label = 'default', ...data: any[]): void => {
-      if (!timers[label]) {
-        logger.warn(`Timer ${label} doesn't exist`);
-      } else {
-        logger.log(`${label}: ${Date.now() - timers[label].start} ms`, ...data);
-      }
-    },
-    timeStamp: (label?: string): void => {
-      handleDeprecated('timeStamp', label);
-    },
-    trace: (...data: any[]): void => {
-      handleUnimplemented('trace', ...data);
-    },
-    warn: (...data: any[]): void => {
-      addLog({
-        text: stringify(...data),
-        level: 'warning',
-      });
-    },
-    // eslint-disable-next-line no-console
-    Console: console.Console,
-    profile: (label?: string): void => {
-      handleDeprecated('profile', label);
-    },
-    profileEnd: (label?: string): void => {
-      handleDeprecated('profileEnd', label);
+          addLog({ method: 'timeEnd', data: [label] });
+
+          // logger.log(`${label}: ${timers[label].end! - timers[label].start} ms`);
+        }
+      },
+      timeLog: (label = 'default', ...data: any[]): void => {
+        if (!timers[label]) {
+          logger.console.warn(`Timer ${label} doesn't exist`);
+        } else {
+          logger.console.log(`${label}: ${Date.now() - timers[label].start} ms`, ...data);
+        }
+      },
+      timeStamp: (label?: string): void => {
+        handleDeprecated('timeStamp', label);
+      },
+      trace: (...data: any[]): void => {
+        handleUnimplemented('trace', ...data);
+      },
+      warn: (...data: any[]): void => {
+        addLog({ method: 'warn', data });
+      },
+      profile: (label?: string): void => {
+        handleDeprecated('profile', label);
+      },
+      profileEnd: (label?: string): void => {
+        handleDeprecated('profileEnd', label);
+      },
+      // eslint-disable-next-line no-console
+      Console: console.Console,
     },
   };
+
+  // TODO: add unsubscribtion
+  // Hook(logger.console, (log) => {
+  //   logsStore.logs[loggerId].push(Decode(log));
+  //   logsApi.publishChanges(loggerId);
+  // });
 
   return logger;
 };

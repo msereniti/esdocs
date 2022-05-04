@@ -47,8 +47,9 @@ declare module '@setup/navigation/resolveUrl.json' {
 declare module '@setup/frameworks/frameworks.js' {
   const frameworks: {
     [frameworkName: string]: {
-      init: string;
-      imports: string[];
+      handlers: {
+        [fileExtention: string]: `(expression, hostElement) => {${string}}`;
+      };
       loadDependencies: <
         T extends { [dependencyName: string]: string }
       >() => Promise<{ ____dependencies____: T }>;
@@ -56,12 +57,4 @@ declare module '@setup/frameworks/frameworks.js' {
   };
 
   export default frameworks;
-}
-
-declare module '@setup/playgrounds.js' {
-  const playgrounds: {
-    [playgroundId: string]: <T>() => Promise<{ default: T }>;
-  };
-
-  export default playgrounds;
 }

@@ -1,6 +1,3 @@
 import { BuildOptions } from 'esbuild';
 
-declare const getEsbuildConfigBase: (
-  entryPoints: string[],
-  outdir: string
-) => BuildOptions;
+declare const getEsbuildConfigBase: (entryPoints: string[], outdir: string) => BuildOptions;

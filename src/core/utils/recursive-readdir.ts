@@ -10,11 +10,7 @@ type Filter = {
 };
 type FSPath = string;
 
-export const recursiveReadDir = async (
-  rootDir: string,
-  filter?: Filter,
-  maxDepth = Infinity
-): Promise<FSPath[]> => {
+export const recursiveReadDir = async (rootDir: string, filter?: Filter, maxDepth = Infinity): Promise<FSPath[]> => {
   if (!(await pathExists(resolvePath(rootDir)))) return [];
 
   const result: FSPath[] = [];
@@ -31,7 +27,7 @@ export const recursiveReadDir = async (
       }));
 
       if (rootDir === '.') {
-        console.log(entities);
+        console.info(entities);
         process.exit();
       }
 
@@ -77,7 +73,5 @@ export const recursiveReadDir = async (
     tasks = tasks.filter((task) => !resolvedTasks.has(task.path));
   }
 
-  return result
-    .sort((a, b) => a.localeCompare(b))
-    .sort((a, b) => a.split(sep).length - b.split(sep).length);
+  return result.sort((a, b) => a.localeCompare(b)).sort((a, b) => a.split(sep).length - b.split(sep).length);
 };

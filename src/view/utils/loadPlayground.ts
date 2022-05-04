@@ -1,10 +1,27 @@
 import frameworks from '@setup/frameworks/frameworks.js';
 
-import { makeLogger } from '../logger/logger';
+import { logsApi, makeLogger } from '../logger/logger';
+import { InitRuntime } from '../playground/runtime/runtime';
 import { evaluateWithContext } from './evaluateWithContext';
+import { loadJsonFile } from './loadJson';
 import { loadModule } from './loadModule';
+import { loadTextFile } from './loadTextFile';
 
-type InitRuntime = (container: HTMLElement) => void;
+export type CodeEntry = {
+  name: string;
+  extention: {
+    source: string;
+    compiled: string;
+  };
+  path: string;
+  sourceCode: string;
+};
+
+export type Playground = {
+  id: string;
+  framework: string;
+  codeEntries: CodeEntry[];
+};
 
 declare global {
   // eslint-disable-next-line no-var
@@ -23,54 +40,71 @@ declare global {
 }
 
 const initGlobalImportsContext = () => {
-  globalThis.____esDocsImportsGlobalContext =
-    globalThis.____esDocsImportsGlobalContext || {
-      frameworkDependencies: {},
-    };
+  globalThis.____esDocsImportsGlobalContext = globalThis.____esDocsImportsGlobalContext || {
+    frameworkDependencies: {},
+  };
 };
 
-export const loadPlaygroundRuntime = async (
-  playgroundId: string,
-  frameworkName: string
-): Promise<InitRuntime> => {
+export const loadPlayground = async (playgroundId: string): Promise<{ playground: Playground; initRuntime: InitRuntime }> => {
   initGlobalImportsContext();
+  const playground: Playground = await loadJsonFile(`/playgrounds/${playgroundId}.json`);
 
-  /** TBD: handle missed framework */
-  const framework = frameworks[frameworkName];
+  const framework = frameworks[playground.framework];
 
   await framework.loadDependencies();
-  const frameworkDependencies =
-    globalThis.____esDocsImportsGlobalContext.frameworkDependencies[
-      frameworkName
-    ] || {};
-  const logger = makeLogger(playgroundId);
+  const frameworkDependencies = globalThis.____esDocsImportsGlobalContext.frameworkDependencies[playground.framework] || {};
+  const logger = makeLogger(playground.id);
+  const setUpEvalExecutor = (executor: (toEval: string) => void) => logsApi.registerContextExecutor(playgroundId, executor);
 
   const scopeVariables = {
     /** TBD: output warning if console dep provided */
-    console: logger,
+    console: logger.console,
     ...frameworkDependencies.variables,
   };
   const providedModules = {
     ...frameworkDependencies.modules,
   };
 
-  const playgroundChunkUrl = `./playgrounds/${playgroundId}.js`;
-  const evaluatedRuntime = await loadModule(playgroundChunkUrl, {
-    scopeImports: scopeVariables,
-    requirableModules: providedModules,
-  });
+  const evaluatedPlaygroundFiles = await Promise.all(
+    playground.codeEntries.map((codeEntry) => {
+      const chunkUrl = `/codeEntries/${codeEntry.path}`;
+
+      if (codeEntry.extention.compiled === 'js') {
+        return loadModule(chunkUrl, {
+          scopeImports: scopeVariables,
+          requirableModules: providedModules,
+        });
+      } else {
+        return loadTextFile(chunkUrl);
+      }
+    })
+  );
 
   const initRuntime: InitRuntime = (container) => {
-    const initIife = `(${framework.init})(____evaluatedRuntime____, ____container____)`;
+    for (let index = 0; index < playground.codeEntries.length; index++) {
+      const isLastCodeEntry = index === playground.codeEntries.length - 1;
+      const file = playground.codeEntries[index];
+      /* TBD: handle missed extention */
+      const fileExtention = file.extention.compiled;
+      /* TBD: handle missed handler */
+      const fileHandler = framework.handlers[fileExtention];
+      const initIife = `(${fileHandler})(____evaluatedRuntime____, ____container____)`;
 
-    evaluateWithContext(initIife, {
-      ...scopeVariables,
-      ____evaluatedRuntime____: evaluatedRuntime,
-      ____container____: container,
-    });
+      const context = {
+        ...scopeVariables,
+        ____evaluatedRuntime____: evaluatedPlaygroundFiles[index],
+        ____container____: container,
+      };
+
+      if (index === 2) {
+        context.____setUpEsDocsEvalExecutor____ = setUpEvalExecutor;
+      }
+
+      evaluateWithContext(initIife, context);
+    }
   };
 
-  return initRuntime;
+  return { playground, initRuntime };
 
   // console.log()
 

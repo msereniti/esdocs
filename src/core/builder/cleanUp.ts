@@ -2,11 +2,7 @@ import { remove } from 'fs-extra';
 
 import { recursiveReadDir } from '../utils/recursive-readdir';
 
-export const cleanUp = async (
-  directoryPath: string,
-  prefix: string,
-  maxDepth = Infinity
-) => {
+export const cleanUp = async (directoryPath: string, prefix: string, maxDepth = Infinity) => {
   const files = await recursiveReadDir(
     directoryPath,
     {

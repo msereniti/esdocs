@@ -1,20 +1,11 @@
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 
-import {
-  assembleNavigationTree,
-  collapseIntermediatePaths,
-  cutRelativePaths,
-  findLabel,
-} from './navigation';
+import { assembleNavigationTree, collapseIntermediatePaths, cutRelativePaths, findLabel } from './navigation';
 
 test('navigation/utils/cutRelativePaths/multiple', () => {
   assert.equal(
-    cutRelativePaths([
-      '/system-root/projects/awesome/docs/intro.md',
-      '/system-root/projects/awesome/docs/about.md',
-      '/system-root/projects/awesome/docs/directory/other_file.md',
-    ]),
+    cutRelativePaths(['/system-root/projects/awesome/docs/intro.md', '/system-root/projects/awesome/docs/about.md', '/system-root/projects/awesome/docs/directory/other_file.md']),
     {
       basePath: '/system-root/projects/awesome/docs/',
       relativePaths: ['intro.md', 'about.md', 'directory/other_file.md'],
@@ -22,13 +13,10 @@ test('navigation/utils/cutRelativePaths/multiple', () => {
   );
 });
 test('navigation/utils/cutRelativePaths/singluar', () => {
-  assert.equal(
-    cutRelativePaths(['/system-root/projects/awesome/docs/intro.md']),
-    {
-      basePath: '/system-root/projects/awesome/docs/',
-      relativePaths: ['intro.md'],
-    }
-  );
+  assert.equal(cutRelativePaths(['/system-root/projects/awesome/docs/intro.md']), {
+    basePath: '/system-root/projects/awesome/docs/',
+    relativePaths: ['intro.md'],
+  });
 });
 test('navigation/utils/collapseIntermediatePaths', () => {
   assert.equal(
@@ -50,28 +38,13 @@ test('navigation/utils/collapseIntermediatePaths', () => {
         'docs/about/secondary_some_data.md',
       ],
       untouchedPaths: ['intro.md', 'docs/about/some_data.md'],
-      collapsedPaths: [
-        'docs/more_details/hello_world.md',
-        'docs/more_details/another_thing.md',
-        'docs/another_details_single_children.md',
-        'docs/about/secondary_some_data.md',
-      ],
+      collapsedPaths: ['docs/more_details/hello_world.md', 'docs/more_details/another_thing.md', 'docs/another_details_single_children.md', 'docs/about/secondary_some_data.md'],
       initPaths: {
         'docs/more_details': ['docs/more', 'docs/more/details'],
-        'docs/more_details/hello_world.md': [
-          'docs/more/details/hello_world.md',
-        ],
-        'docs/more_details/another_thing.md': [
-          'docs/more/details/another_thing.md',
-        ],
-        'docs/another_details_single_children.md': [
-          'docs/another_details',
-          'docs/another_details/single_children.md',
-        ],
-        'docs/about/secondary_some_data.md': [
-          'docs/about/secondary',
-          'docs/about/secondary/some_data.md',
-        ],
+        'docs/more_details/hello_world.md': ['docs/more/details/hello_world.md'],
+        'docs/more_details/another_thing.md': ['docs/more/details/another_thing.md'],
+        'docs/another_details_single_children.md': ['docs/another_details', 'docs/another_details/single_children.md'],
+        'docs/about/secondary_some_data.md': ['docs/about/secondary', 'docs/about/secondary/some_data.md'],
       },
     }
   );
@@ -188,22 +161,14 @@ test('navigation/assembleNavigationTree', () => {
         '/system-root/projects/awesome/docs/intro.md': 'intro title',
         '/system-root/projects/awesome/docs/intro/author.md': 'author title',
         '/system-root/projects/awesome/docs/intro/thanks.md': 'thanks title',
-        '/system-root/projects/awesome/docs/components/forms/text.md':
-          'text title',
-        '/system-root/projects/awesome/docs/components/forms/number.md':
-          'number title',
-        '/system-root/projects/awesome/docs/controls/controls.md':
-          'controls title',
-        '/system-root/projects/awesome/docs/controls/buttons/button.md':
-          'button title',
-        '/system-root/projects/awesome/docs/controls/buttons/checkbox.md':
-          'checkbox title',
-        '/system-root/projects/awesome/docs/controls/radio/radio-button.md':
-          'radio-button title',
-        '/system-root/projects/awesome/docs/controls/radio/radio-flag.md':
-          'radio-flag title',
-        '/system-root/projects/awesome/docs/controls/radio/some/secret/weapon.md':
-          'secret weapon title',
+        '/system-root/projects/awesome/docs/components/forms/text.md': 'text title',
+        '/system-root/projects/awesome/docs/components/forms/number.md': 'number title',
+        '/system-root/projects/awesome/docs/controls/controls.md': 'controls title',
+        '/system-root/projects/awesome/docs/controls/buttons/button.md': 'button title',
+        '/system-root/projects/awesome/docs/controls/buttons/checkbox.md': 'checkbox title',
+        '/system-root/projects/awesome/docs/controls/radio/radio-button.md': 'radio-button title',
+        '/system-root/projects/awesome/docs/controls/radio/radio-flag.md': 'radio-flag title',
+        '/system-root/projects/awesome/docs/controls/radio/some/secret/weapon.md': 'secret weapon title',
       }
     ),
     {

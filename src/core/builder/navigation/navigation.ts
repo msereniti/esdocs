@@ -24,14 +24,11 @@ type NavigationChunk = {
 };
 
 export const cutRelativePaths = (paths: string[]) => {
-  const basePath =
-    (paths.length === 1 ? dirname(paths[0]) : makeCommonPath(paths)) + sep;
+  const basePath = (paths.length === 1 ? dirname(paths[0]) : makeCommonPath(paths)) + sep;
 
   return {
     basePath,
-    relativePaths: paths.map((absolutePath) =>
-      absolutePath.substring(basePath.length)
-    ),
+    relativePaths: paths.map((absolutePath) => absolutePath.substring(basePath.length)),
   };
 };
 export const collapseIntermediatePaths = (paths: string[]) => {
@@ -55,15 +52,10 @@ export const collapseIntermediatePaths = (paths: string[]) => {
 
     childrenOf[parent].push(path);
   }
-  const usedSiblings = paths
-    .map((path) => childrenOf[dirname(path)] || [])
-    .flat();
+  const usedSiblings = paths.map((path) => childrenOf[dirname(path)] || []).flat();
 
   const parentDirs = [...allPaths].map(dirname);
-  const parentDirUsages = parentDirs.reduce(
-    (acc, dirPath) => ({ ...acc, [dirPath]: (acc[dirPath] || 0) + 1 }),
-    {} as { [dirPath: string]: number }
-  );
+  const parentDirUsages = parentDirs.reduce((acc, dirPath) => ({ ...acc, [dirPath]: (acc[dirPath] || 0) + 1 }), {} as { [dirPath: string]: number });
   const usedParentDirs = Object.entries(parentDirUsages)
     .filter(([, usageCount]) => usageCount > 1)
     .map(([dirPath]) => dirPath);
@@ -73,12 +65,8 @@ export const collapseIntermediatePaths = (paths: string[]) => {
       .map(([dirPath]) => [dirPath, true])
   );
 
-  const usedPaths = [...usedParentDirs, ...usedSiblings].filter(
-    (path) => !singularUsageParentDirs[path]
-  );
-  const usedPathsMap = Object.fromEntries(
-    usedPaths.map((path) => [path, true])
-  );
+  const usedPaths = [...usedParentDirs, ...usedSiblings].filter((path) => !singularUsageParentDirs[path]);
+  const usedPathsMap = Object.fromEntries(usedPaths.map((path) => [path, true]));
 
   const collapsedPaths: { [originalPath: string]: string } = {};
   const initPathsByCollapsedPath: { [collapsedPath: string]: string[] } = {};
@@ -106,11 +94,7 @@ export const collapseIntermediatePaths = (paths: string[]) => {
 
     if (toCollapse.length > 0) {
       for (const { from, to } of [...toCollapse].reverse()) {
-        for (
-          let unusedDirectoryPathEnd = from;
-          unusedDirectoryPathEnd < to;
-          unusedDirectoryPathEnd++
-        ) {
+        for (let unusedDirectoryPathEnd = from; unusedDirectoryPathEnd < to; unusedDirectoryPathEnd++) {
           initPaths.push(parts.slice(0, unusedDirectoryPathEnd + 1).join(sep));
         }
 
@@ -120,8 +104,7 @@ export const collapseIntermediatePaths = (paths: string[]) => {
 
         const collapsedDirectory = parts.slice(0, from + 1).join(sep);
 
-        initPathsByCollapsedPath[collapsedDirectory] =
-          initPathsByCollapsedPath[collapsedDirectory] || [];
+        initPathsByCollapsedPath[collapsedDirectory] = initPathsByCollapsedPath[collapsedDirectory] || [];
         initPathsByCollapsedPath[collapsedDirectory].push(...initPaths);
       }
 
@@ -129,32 +112,23 @@ export const collapseIntermediatePaths = (paths: string[]) => {
 
       collapsedPaths[path] = collapsedPath;
 
-      initPathsByCollapsedPath[collapsedPath] =
-        initPathsByCollapsedPath[collapsedPath] || [];
+      initPathsByCollapsedPath[collapsedPath] = initPathsByCollapsedPath[collapsedPath] || [];
       initPathsByCollapsedPath[collapsedPath].push(initPath);
     }
   }
 
   for (const path in initPathsByCollapsedPath) {
-    initPathsByCollapsedPath[path] = [
-      ...new Set(initPathsByCollapsedPath[path]),
-    ];
+    initPathsByCollapsedPath[path] = [...new Set(initPathsByCollapsedPath[path])];
   }
 
   return {
     allProcessedPaths: paths.map((path) => collapsedPaths[path] || path),
     untouchedPaths: paths.filter((path) => !collapsedPaths[path]),
-    collapsedPaths: paths
-      .filter((path) => collapsedPaths[path])
-      .map((path) => collapsedPaths[path]),
+    collapsedPaths: paths.filter((path) => collapsedPaths[path]).map((path) => collapsedPaths[path]),
     initPaths: initPathsByCollapsedPath,
   };
 };
-export const findLabel = (
-  path: string,
-  labledFiles: { [filePath: string]: string },
-  usedExtensions: string[] = ['md', 'mdx']
-) => {
+export const findLabel = (path: string, labledFiles: { [filePath: string]: string }, usedExtensions: string[] = ['md', 'mdx']) => {
   const name = path.split(sep).pop()!;
 
   if (labledFiles[path]) {
@@ -180,10 +154,7 @@ export const findLabel = (
   }
 
   const depth = path.split(sep).length;
-  const children = Object.keys(labledFiles).filter(
-    (filePath) =>
-      filePath.startsWith(path) && filePath.split(sep).length === depth + 1
-  );
+  const children = Object.keys(labledFiles).filter((filePath) => filePath.startsWith(path) && filePath.split(sep).length === depth + 1);
 
   if (children.length === 1) {
     const singleChildLabel = labledFiles[children[0]];
@@ -207,8 +178,7 @@ export const assembleNavigationTree = (
   const chunks: NavigationChunk[] = [];
 
   const { basePath, relativePaths } = cutRelativePaths([...rawPaths]);
-  const { allProcessedPaths: paths, initPaths } =
-    collapseIntermediatePaths(relativePaths);
+  const { allProcessedPaths: paths, initPaths } = collapseIntermediatePaths(relativePaths);
 
   const addedNodesPosition: {
     [depth: number]: {
@@ -220,16 +190,10 @@ export const assembleNavigationTree = (
     const parts = relativePath.split(sep);
     let node = tree;
 
-    if (
-      parts.length >= 2 &&
-      withoutExtension(parts[parts.length - 1]) === parts[parts.length - 2]
-    ) {
+    if (parts.length >= 2 && withoutExtension(parts[parts.length - 1]) === parts[parts.length - 2]) {
       parts.pop();
     }
-    if (
-      parts.length >= 2 &&
-      withoutExtension(parts[parts.length - 1]) === 'index'
-    ) {
+    if (parts.length >= 2 && withoutExtension(parts[parts.length - 1]) === 'index') {
       parts.pop();
     }
 
@@ -242,21 +206,13 @@ export const assembleNavigationTree = (
         const snakeCasePath = [...parts.slice(0, depth), part].join('_');
         const isLeaf = depth === parts.length - 1;
         const id = snakeCasePath.split(/\W/).join('_');
-        let label = findLabel(
-          resolvePath(basePath, path),
-          labledFiles,
-          usedExtensions
-        );
+        let label = findLabel(resolvePath(basePath, path), labledFiles, usedExtensions);
         let originalPath = path;
 
         if (initPaths[path]) {
           for (const possibleInitPath of initPaths[path]) {
             if (label !== undefined) break;
-            label = findLabel(
-              resolvePath(basePath, possibleInitPath),
-              labledFiles,
-              usedExtensions
-            );
+            label = findLabel(resolvePath(basePath, possibleInitPath), labledFiles, usedExtensions);
           }
           originalPath = initPaths[path][initPaths[path].length - 1];
         }
@@ -310,11 +266,7 @@ export const buildNavigation = async (
   },
   destinationPath: string
 ) => {
-  const { tree, chunks } = assembleNavigationTree(
-    rawArticles,
-    bundledArticles,
-    articlesLabelsByPath
-  );
+  const { tree, chunks } = assembleNavigationTree(rawArticles, bundledArticles, articlesLabelsByPath);
 
   const navigationFilePath = resolvePath(destinationPath, 'tree.json');
   const loadersFilePath = resolvePath(destinationPath, 'loaders.js');
@@ -332,11 +284,7 @@ export const buildNavigation = async (
 
   const urlToId = Object.fromEntries(chunks.map(({ url, id }) => [url, id]));
 
-  await Promise.all([
-    writeJson(navigationFilePath, tree),
-    writeFile(loadersFilePath, importsFile.join('\n')),
-    writeJson(resolveUrlFilePath, urlToId),
-  ]);
+  await Promise.all([writeJson(navigationFilePath, tree), writeFile(loadersFilePath, importsFile.join('\n')), writeJson(resolveUrlFilePath, urlToId)]);
 };
 // const articles = await recursiveReadDir(articlesDestPath, {
 //   endsWith: '.js',

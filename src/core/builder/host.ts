@@ -7,13 +7,6 @@ export const buildHost = async (destinationPath: string) => {
   if (host.staticFiles) {
     const files = Object.keys(host.staticFiles);
 
-    await Promise.all(
-      files.map((relativePath) =>
-        writeFile(
-          resolvePath(destinationPath, relativePath),
-          host.staticFiles[relativePath]
-        )
-      )
-    );
+    await Promise.all(files.map((relativePath) => writeFile(resolvePath(destinationPath, relativePath), host.staticFiles[relativePath])));
   }
 };

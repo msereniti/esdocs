@@ -1,9 +1,26 @@
+export type PlaygroundFile = {
+  playgroundId: string;
+  content: string;
+  extention: string;
+  name: string | null;
+  outputFilePath?: string;
+  source: {
+    path: string;
+    from: {
+      line: number;
+      column: number;
+    };
+    to: {
+      line: number;
+      column: number;
+    };
+  };
+};
+
 export type Playground = {
   id: string;
-  content: string;
-  extension: string;
-  sourceFilePath: string;
   framework: string;
+  files: PlaygroundFile[];
 };
 
 export type TraverseCollections = {

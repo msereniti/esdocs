@@ -53,7 +53,7 @@
     "no-throw-literal": "error",
     "no-unmodified-loop-condition": "error",
     "no-unused-expressions": "error",
-    "no-useless-concat": "warn",
+    "no-useless-concat": "off",
     "no-useless-escape": "warn",
     "no-void": "error",
     "no-with": "error",
@@ -68,7 +68,7 @@
     "consistent-this": ["error", "_this"],
     "id-blacklist": "off",
     "max-depth": ["warn", 6],
-    "max-nested-callbacks": ["warn", 3],
+    "max-nested-callbacks": ["warn", 5],
     "max-params": "off",
     "max-statements-per-line": [
       "error",
@@ -100,6 +100,11 @@
     "simple-import-sort/exports": "error",
     "import/no-extraneous-dependencies": "error",
     "prefer-arrow-functions/prefer-arrow-functions": ["warn"],
-    "no-unused-vars": "off"
+    "no-unused-vars": "off",
+    "prettier/prettier": ["error", {
+      "singleQuote": true,
+      "tabWidth": 2,
+      "printWidth": 180
+    }]
   }
 }

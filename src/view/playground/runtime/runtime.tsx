@@ -1,18 +1,11 @@
 import React from 'react';
-import usePromise from 'react-promise-suspense';
 
-import { loadPlaygroundRuntime } from '../../utils/loadPlaygroundRuntime';
+export type InitRuntime = (container: HTMLElement) => void;
 
 export const PlaygroundRuntime: React.FC<{
-  playgroundId: string;
-  framework: string;
-}> = ({ playgroundId, framework }) => {
+  initRuntime: InitRuntime;
+}> = ({ initRuntime }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
-
-  const initRuntime = usePromise(loadPlaygroundRuntime, [
-    playgroundId,
-    framework,
-  ]);
 
   React.useEffect(() => {
     if (containerRef.current) {

@@ -35,7 +35,6 @@ console.log('Hello world from tsx!');
 
 ```jsx
 console.log('Hello world from jsx!');
-console.clear();
 ```
 
 Timers:
