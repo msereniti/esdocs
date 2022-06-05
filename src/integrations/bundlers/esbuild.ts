@@ -10,10 +10,17 @@ export const esbuildIntegration: EsDocsBundlerIntegration = async ({ entryPoints
     external,
     entryPoints,
     bundle: true,
+    publicPath: 'assets',
     outdir: outputDir,
     treeShaking: false,
     format: 'cjs',
     metafile: true,
+    loader: {
+      '.jpg': 'file',
+      '.jpeg': 'file',
+      '.png': 'file',
+      '.gif': 'file',
+    },
   });
 
   const chunkIdByEntryPointBasename: { [entryPointBasename: string]: string } = {};
@@ -22,9 +29,10 @@ export const esbuildIntegration: EsDocsBundlerIntegration = async ({ entryPoints
     chunkIdByEntryPointBasename[resolvePathBasename(entryPoints[chunkId])] = chunkId;
   }
 
-  return Object.entries(outputs).map(([chunkFilePath, { entryPoint }]) => ({
-    chunkFilePath,
-    id: chunkIdByEntryPointBasename[resolvePathBasename(entryPoint!)],
-    hasSourceMaps: true,
-  }));
+  return Object.entries(outputs)
+    .filter(([, { entryPoint }]) => entryPoint)
+    .map(([chunkFilePath, { entryPoint }]) => ({
+      chunkFilePath,
+      id: chunkIdByEntryPointBasename[resolvePathBasename(entryPoint!)],
+    }));
 };

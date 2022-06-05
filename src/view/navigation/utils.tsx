@@ -9,12 +9,10 @@ const useHashLocation = () => {
   const [loc, setLoc] = React.useState(currentLocation());
 
   React.useEffect(() => {
-    // this function is called whenever the hash changes
     const handler = () => {
       setLoc(currentLocation());
     };
 
-    // subscribe to hash changes
     window.addEventListener('hashchange', handler);
 
     return () => window.removeEventListener('hashchange', handler);
@@ -42,14 +40,6 @@ export const useLocation = () => {
 
   return [location, navigateTo, hash] as [location: string, navigateTo: (to: string) => void, lash: string];
 };
-
-// export const makeUrl = (url: string) => {
-//   if (mode === 'hash') {
-//     return '#' + url;
-//   }
-
-//   return url;
-// };
 
 export const Link = ({ children, to, onClick, ...restProps }: PropsWithChildren<{ to: string }> & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
   const [, navigate] = useLocation();

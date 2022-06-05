@@ -1,4 +1,4 @@
-import { evaluateWithContext, EvaluationContext } from './evaluateWithContext';
+import { evaluateWithContext, EvaluationContext, ExposedContextAccessor } from './evaluateWithContext';
 import { loadJsonFile } from './loadJson';
 import { loadTextFile } from './loadTextFile';
 import { sourceMapsHandler } from './sourceMapsHandler';
@@ -6,18 +6,20 @@ import { sourceMapsHandler } from './sourceMapsHandler';
 export const loadModule = async <Module extends unknown>(
   url: string,
   {
-    scopeImports = {},
+    context = {},
     requirableModules = {},
+    handleRuntimeVariables,
   }: {
-    scopeImports?: EvaluationContext;
+    context?: EvaluationContext;
     requirableModules?: EvaluationContext;
     cutIife?: boolean;
+    handleRuntimeVariables?: (exposedVariables: ExposedContextAccessor) => void;
   }
 ) => {
   const module: { exports?: { default?: Module } } = {};
 
-  const context = {
-    ...scopeImports,
+  const fullContext = {
+    ...context,
     require: (moduleName: string) => {
       if (requirableModules[moduleName]) {
         return requirableModules[moduleName];
@@ -31,34 +33,9 @@ export const loadModule = async <Module extends unknown>(
   };
 
   const moduleCode = await loadTextFile(url);
-  const lastLine = moduleCode.split('\n').filter(Boolean).pop();
-  // moduleCode = moduleCode.replace('# sourceMappingURL=', 'fuck');
-
-  // if (lastLine?.startsWith('//# esDocsSourceMappingFile=')) {
-  //   const moduleUrlDir = url.split('/').slice(0, -1).join('/');
-  //   const sourceMapsFileName = lastLine.substring(
-  //     '//# esDocsSourceMappingFile='.length
-  //   );
-  // const sourceMapsUrl = moduleUrlDir + '/' + sourceMapsFileName;
-
-  // const sourceMaps = await loadJsonFile(sourceMapsUrl);
-
-  // if (sourceMaps.version === 3) {
-  //   sourceMapsHandler(
-  //     sourceMaps.mappings,
-  //     sourceMaps.sourcesContent,
-  //     moduleCode
-  //   );
-  // } else {
-  //   // eslint-disable-next-line no-console
-  //   console.warn(
-  //     `Got unsupported source maps version ${sourceMaps.version} in ${sourceMapsUrl}. Currently supported versions: 3.`
-  //   );
-  // }
-  // }
 
   try {
-    return evaluateWithContext(moduleCode, context);
+    return evaluateWithContext(moduleCode, fullContext, handleRuntimeVariables);
   } catch (error) {
     /** TBD: handle in better way */
     /* eslint-disable no-console */

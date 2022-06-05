@@ -1,23 +1,39 @@
-import { ensureDir, pathExists, remove } from 'fs-extra';
-
-import { outOfTheBoxFrameworks } from '../../integrations/frameworks/frameworks';
-import { resolvePath, writeFile } from '../utils/fs';
+import { EsDocsFrameworkIntegration, outOfTheBoxFrameworks } from '../../integrations/frameworks/frameworks';
+import { getAllConfigurations } from '../configuration/configuration';
+import { esDocsFs } from '../utils/fs';
 import { runBundler } from './bundler';
 import { tmpFilesPrefix } from './definitions';
 
 export const setupFrameworks = async (destinationPath: string) => {
-  const frameworks = [outOfTheBoxFrameworks.react];
+  const configs = getAllConfigurations();
+  const availableFrameworks: { [framework: string]: EsDocsFrameworkIntegration } = { ...outOfTheBoxFrameworks };
+  for (const config of configs) {
+    for (const framework in config!.contents.frameworks || {}) {
+      availableFrameworks[framework] = config!.contents.frameworks![framework];
+    }
+  }
+  const usedFrameworks: { [frameworkName: string]: EsDocsFrameworkIntegration } = {};
+  for (const config of configs) {
+    if (!config?.contents.framework) continue;
+    const framework = typeof config?.contents.framework === 'string' ? availableFrameworks[config.contents.framework] : config.contents.framework;
+    if (!framework) {
+      throw new Error(`Framework ${config?.contents.framework} is not available. Configurated frameworks: ${Object.keys(availableFrameworks).join(', ')}`);
+    }
 
-  /** Tbd: throw on frameworks names collision or \W in name or \W in dependencies */
-  /** Tbd: check that all requested frameworks provided */
-
-  const tmpDirPath = resolvePath(`./${tmpFilesPrefix}_frameworks_dependencies`);
-
-  if (await pathExists(tmpDirPath)) {
-    await remove(tmpDirPath);
+    usedFrameworks[framework.name] = framework;
   }
 
-  await ensureDir(tmpDirPath);
+  const frameworks = Object.values(usedFrameworks);
+
+  /** Tbd: throw on frameworks names collision or \W in name or \W in dependencies */
+
+  const tmpDirPath = esDocsFs.resolvePath(`./${tmpFilesPrefix}/frameworks_dependencies`);
+
+  // if (await esDocsFs.exists(tmpDirPath)) {
+  //   await esDocsFs.emptyDir(tmpDirPath);
+  // }
+
+  // await esDocsFs.ensureDir(tmpDirPath);
 
   await Promise.all(
     frameworks.map(({ name, dependencies }) => {
@@ -66,25 +82,23 @@ export const setupFrameworks = async (destinationPath: string) => {
       //   '\n' +
       //   `export const ____dependencies____ = { ${dependenciesNamesJoin} };`;
 
-      writeFile(resolvePath(tmpDirPath, `${name}.js`), content);
+      esDocsFs.putTmpFileWrite(esDocsFs.resolvePath(tmpDirPath, `${name}.js`), content);
     })
   );
+
+  await esDocsFs.commitTmps();
 
   await Promise.all(
     frameworks.map((framework) =>
       runBundler({
         entryPoints: {
-          [framework.name]: resolvePath(tmpDirPath, `${framework.name}.js`),
+          [framework.name]: esDocsFs.resolvePath(tmpDirPath, `${framework.name}.js`),
         },
         external: framework.external || [],
-        outputDir: resolvePath(destinationPath, 'dependencies'),
+        outputDir: esDocsFs.resolvePath(destinationPath, 'dependencies'),
       })
     )
   );
-
-  if (await pathExists(tmpDirPath)) {
-    await remove(tmpDirPath);
-  }
 
   /** Tbd: async load init */
   const frameworksNamesJoin = frameworks.map(({ name }) => name).join(', ');
@@ -101,5 +115,5 @@ export const setupFrameworks = async (destinationPath: string) => {
     `const defaultExport = { ${frameworksNamesJoin} };\n` +
     'export default defaultExport;';
 
-  await writeFile(resolvePath(destinationPath, 'frameworks.js'), frameworksFile);
+  await esDocsFs.writeOutputFile(esDocsFs.resolvePath(destinationPath, 'frameworks.js'), frameworksFile);
 };

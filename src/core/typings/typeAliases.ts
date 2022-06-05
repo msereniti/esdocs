@@ -1,12 +1,13 @@
 import ts from 'typescript';
 
-import { extractDependenciesList, serializeProperty, serializeTsNode } from './serializer';
+import { extractDependenciesList, SerializedNode, serializeProperty, serializeTsNode } from './serializer';
+import { SerializedType } from './typings';
 
-export const serializeTypeDeclaration = (typeDeclaration: ts.TypeAliasDeclaration) => {
+export const serializeTypeDeclaration = (typeDeclaration: ts.TypeAliasDeclaration): SerializedType => {
   const name = typeDeclaration.name.escapedText as string;
-  const genericsMap = {};
+  const genericsMap: Record<string, SerializedNode> = {};
   const properties = [];
-  const dependencies = [];
+  const dependencies: string[] = [];
 
   for (const typeParameter of typeDeclaration.typeParameters ?? []) {
     if (typeParameter.kind === ts.SyntaxKind.TypeParameter && typeParameter.constraint) {
@@ -29,7 +30,7 @@ export const serializeTypeDeclaration = (typeDeclaration: ts.TypeAliasDeclaratio
     dependencies.push(...property.dependencies);
   }
 
-  const type = serializeTsNode(typeDeclaration.type, genericsMap);
+  const type: string[] = serializeTsNode(typeDeclaration.type, genericsMap);
 
   dependencies.push(...extractDependenciesList(type));
 

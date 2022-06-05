@@ -2,16 +2,9 @@ import { Content as MdxAstNode, Root as MdxAstRoot } from '@mdx-js/mdx/lib/plugi
 import { Code as MdxCodeBlockNode } from 'mdast';
 
 import { PlaygroundCodeDefinition, PlaygroundCodeDefinitionString } from '../../common/definitions';
+import { getConfiguration } from '../configuration/configuration';
 import { uniqueId } from '../utils/uniqueId';
 import { Playground, PlaygroundFile, TraverseCollections } from './definitions';
-
-const linearUnshift = <T extends any[]>(arr: T, toUnshift: T) => {
-  arr.reverse();
-  arr.push([...toUnshift].reverse());
-  arr.reverse();
-
-  return arr;
-};
 
 const createPlaygroundCodeDefinition = (playgroundId: string) => {
   const definition: PlaygroundCodeDefinition = {
@@ -42,7 +35,7 @@ const mapMarkdownChildren = (children: MdxAstNode[], traverseCollections: Traver
       typeToHandle = 'heading';
     }
 
-    if (typeToHandle === 'code' && child.type === 'code') {
+    if (typeToHandle === 'code' && child.type === 'code' && !child.meta?.toLowerCase().split(' ').includes('pure')) {
       const playgroundId = uniqueId('playground');
       const files: PlaygroundFile[] = [];
 
@@ -56,6 +49,15 @@ const mapMarkdownChildren = (children: MdxAstNode[], traverseCollections: Traver
         }
 
         const name = meta ?? null;
+        const tokens = (name ?? '').toLowerCase().split(' ');
+        const isPure = tokens.includes('pure');
+
+        if (isPure) {
+          i--;
+          break;
+        }
+
+        // TBD: validate name for extension
 
         files.push({
           playgroundId,
@@ -70,22 +72,23 @@ const mapMarkdownChildren = (children: MdxAstNode[], traverseCollections: Traver
         });
       }
 
-      /* TBD: get real framework */
-      const framework = 'react';
+      if (files.length > 0) {
+        const framework = getConfiguration(sourceFilePath).framework as any;
 
-      const playground: Playground = {
-        id: playgroundId,
-        framework,
-        files,
-      };
+        const playground: Playground = {
+          id: playgroundId,
+          framework,
+          files,
+        };
 
-      result.push({
-        ...child,
-        value: createPlaygroundCodeDefinition(playground.id),
-      });
-      blockAdded = true;
+        result.push({
+          ...child,
+          value: createPlaygroundCodeDefinition(playground.id),
+        });
+        blockAdded = true;
 
-      traverseCollections.playgrounds.push(playground);
+        traverseCollections.playgrounds.push(playground);
+      }
     } else if (typeToHandle === 'heading' && child.type === 'heading' && 'value' in child.children[0]) {
       const content = child.children[0].value;
 

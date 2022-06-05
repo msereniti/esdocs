@@ -1,7 +1,25 @@
 import ts from 'typescript';
 
-export const extractDependenciesList = (typingsParts) => {
-  const dependencies = typingsParts.filter((part) => typeof part === 'object').map((part) => part.referenceTo);
+export type SerializedNode =
+  | {
+      referenceTo: string;
+      displayText: string;
+    }
+  | string
+  | string[]
+  | SerializedNode[];
+
+export type SerializedProperty = {
+  name: string;
+  isOptional: boolean;
+  type: string[];
+  description: string;
+  params: Record<string, string>;
+  dependencies: string[];
+};
+
+export const extractDependenciesList = (typingsParts: SerializedNode[]) => {
+  const dependencies = typingsParts.filter((part) => typeof part === 'object').map((part) => (part as { referenceTo: string }).referenceTo);
 
   for (let i = 0; i < dependencies.length; i++) {
     if (!dependencies[i]) {
@@ -11,10 +29,11 @@ export const extractDependenciesList = (typingsParts) => {
 
   return dependencies;
 };
-const computeTypingStringLength = (typingsParts) => typingsParts.reduce((sum, part) => sum + (typeof part === 'string' ? part.length : part.displayText.length), 0);
+const computeTypingStringLength = (typingsParts: SerializedNode[]) =>
+  typingsParts.reduce((sum, part) => sum + (typeof part === 'string' ? part.length : (part as { displayText: string }).displayText.length), 0);
 
-export const serializeTsNode = (node: ts.Node, genericsMap = {}) => {
-  const traverse = (node: ts.Node) => {
+export const serializeTsNode = (node: ts.Node, genericsMap: Record<string, SerializedNode> = {}) => {
+  const traverse = (node: ts.Node): SerializedNode => {
     switch (node.kind) {
       case ts.SyntaxKind.NumberKeyword:
         return 'number';
@@ -51,12 +70,14 @@ export const serializeTsNode = (node: ts.Node, genericsMap = {}) => {
       case ts.SyntaxKind.FirstLiteralToken:
         return (node as ts.LiteralLikeNode).text;
       case ts.SyntaxKind.Identifier:
-        return (node as ts.Identifier).escapedText;
+        return (node as ts.Identifier).escapedText as string;
       case ts.SyntaxKind.TypeParameter:
-        return (node as ts.TypeParameterDeclaration).name.escapedText;
+        return (node as ts.TypeParameterDeclaration).name.escapedText as string;
       case ts.SyntaxKind.InferType:
         return [`infer `, traverse((node as ts.InferTypeNode).typeParameter)];
       case ts.SyntaxKind.TypeQuery:
+        // console.log(node);
+
         return [`typeof `, traverse((node as ts.TypeQueryNode).exprName)];
       case ts.SyntaxKind.ArrayType:
         return [traverse((node as ts.ArrayTypeNode).elementType), '[]'];
@@ -76,7 +97,7 @@ export const serializeTsNode = (node: ts.Node, genericsMap = {}) => {
           result.push('?');
         }
         result.push(': ');
-        result.push(signature.type);
+        result.push(...signature.type);
 
         return result;
       }
@@ -105,13 +126,14 @@ export const serializeTsNode = (node: ts.Node, genericsMap = {}) => {
       case ts.SyntaxKind.MappedType: {
         const { typeParameter, type } = node as ts.MappedTypeNode;
 
-        return ['[', traverse(typeParameter.name), traverse(typeParameter.constraint), ']:', traverse(type)];
+        return ['[', traverse(typeParameter.name), traverse(typeParameter.constraint!), ']:', traverse(type!)];
       }
       case ts.SyntaxKind.IndexSignature: {
         const { type, parameters } = node as ts.IndexSignatureDeclaration;
 
         if (parameters.length !== 1) {
-          console.log(node);
+          // eslint-disable-next-line no-console
+          console.error(node);
           throw new Error(`Unable to handle IndexSignature with node.paraments.length !== 1`);
         }
 
@@ -124,9 +146,9 @@ export const serializeTsNode = (node: ts.Node, genericsMap = {}) => {
         const parameterValue = type ? traverse(type) : '';
 
         if (parameterValue) {
-          return [parameterName, ': ', parameterValue];
+          return [parameterName as string, ': ', parameterValue];
         } else {
-          return [parameterName];
+          return [parameterName as string];
         }
       }
       case ts.SyntaxKind.IndexedAccessType:
@@ -221,25 +243,25 @@ export const serializeTsNode = (node: ts.Node, genericsMap = {}) => {
   return joinedList;
 };
 
-export const serializeProperty = (propertyDeclaration: ts.PropertySignature, genericsMap) => {
-  const name = (propertyDeclaration as { name?: ts.Identifier }).name.escapedText;
+export const serializeProperty = (propertyDeclaration: ts.PropertySignature, genericsMap: Record<string, SerializedNode>): SerializedProperty => {
+  const name = (propertyDeclaration as { name: ts.Identifier }).name.escapedText as string;
   const isOptional = propertyDeclaration.questionToken !== undefined;
-  const type = serializeTsNode(propertyDeclaration.type, genericsMap);
+  const type = serializeTsNode(propertyDeclaration.type!, genericsMap);
   const dependencies = extractDependenciesList(type);
 
   const jsDoc = (propertyDeclaration as { jsDoc?: ts.JSDoc[] }).jsDoc ?? [];
-  const description = jsDoc.map((jsDocBlock) => jsDocBlock.comment).join('\n');
   const params = Object.fromEntries(
     jsDoc
       .map((jsDocBlock) => jsDocBlock.tags ?? [])
       .flat()
       .map((tag) => {
         const paramName = tag.tagName.escapedText;
-        const paramValue = tag.typeExpression && serializeTsNode(tag.typeExpression, genericsMap);
+        const { typeExpression } = tag as ts.JSDocTypeTag;
+        const paramValue = typeExpression && serializeTsNode(typeExpression, genericsMap);
 
         if (paramName === 'use') {
-          const useInstead = tag.comment.split('.')[0];
-          let useInsteadPostfix = tag.comment.split('.').slice(1).join('.');
+          const useInstead = (tag.comment as string).split('.')[0];
+          let useInsteadPostfix = (tag.comment as string).split('.').slice(1).join('.');
 
           if (useInsteadPostfix.length > 0) {
             useInsteadPostfix = '.' + useInsteadPostfix;
@@ -257,6 +279,7 @@ export const serializeProperty = (propertyDeclaration: ts.PropertySignature, gen
         return [paramName, paramValue];
       })
   );
+  const description = params.description ?? jsDoc.map((jsDocBlock) => jsDocBlock.comment).join('\n');
 
   return {
     name,

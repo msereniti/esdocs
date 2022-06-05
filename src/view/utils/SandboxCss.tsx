@@ -1,7 +1,8 @@
 import React from 'react';
+// @ts-ignore
 import ReactDOM from 'react-dom';
 
-export const SandboxCss: React.FC = ({ children }) => {
+export const SandboxCss: React.FC<{ children: React.ReactNode}> = ({ children }) => {
   const shadowDomChildRef = React.useRef<HTMLDivElement | null>(null);
   const [inititated, setInitiated] = React.useState(false);
   const handleContainerRef = React.useCallback((instance: HTMLDivElement) => {

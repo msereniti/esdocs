@@ -1,10 +1,11 @@
-type NavigationNode = {
-  id: string;
-  label: string;
-  hasArticle: boolean;
-  url: string;
+export type NavigationNode = {
   children: NavigationNode[];
+  label?: string;
+  chunk?: string;
+  route?: string;
+  id?: string;
 };
+export type NavigationTree = NavigationNode[];
 
 declare module '@setup/programmingLanguages/syntaxes.js' {
   const syntaxes: {
@@ -23,7 +24,7 @@ declare module '@setup/programmingLanguages/themes.js' {
 }
 
 declare module '@setup/navigation/tree.json' {
-  const navigationTree: NavigationNode;
+  const navigationTree: NavigationTree;
 
   export default navigationTree;
 }
@@ -50,9 +51,7 @@ declare module '@setup/frameworks/frameworks.js' {
       handlers: {
         [fileExtention: string]: `(expression, hostElement) => {${string}}`;
       };
-      loadDependencies: <
-        T extends { [dependencyName: string]: string }
-      >() => Promise<{ ____dependencies____: T }>;
+      loadDependencies: <T extends { [dependencyName: string]: string }>() => Promise<{ ____dependencies____: T }>;
     };
   };
 

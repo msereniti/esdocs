@@ -1,0 +1,10 @@
+.es-docs__header {
+  display: flex;
+  padding: 10px;
+  border-bottom: 1px solid gray;
+}
+
+.es-docs__header a {
+  color: black;
+  text-decoration: none;
+}

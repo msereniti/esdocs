@@ -14,15 +14,16 @@ type LogsStore = {
     [loggerId: LoggerId]: LogsSubscriber[];
   };
   contextExecutors: {
-    [loggerId: LoggerId]: (toEval: string) => void;
+    [loggerId: LoggerId]: { executor: (toEval: string) => void; availableVariables: string[] };
   };
 };
 type LogsApi = {
   subscribe: (loggerId: LoggerId, subscriber: LogsSubscriber) => DisposeSubscription;
   publishChanges: (loggerId: LoggerId) => void;
 
-  registerContextExecutor: (loggerId: LoggerId, executor: (toEval: string) => void) => void;
+  registerContextExecutor: (loggerId: LoggerId, executor: (toEval: string) => void, availableVariables: string[]) => void;
   execute: (loggerId: LoggerId, toEval: string) => void;
+  getAvailableVariables: (loggerId: LoggerId) => string[];
 };
 
 const logsStore: LogsStore = {
@@ -44,24 +45,34 @@ export const logsApi: LogsApi = {
   publishChanges: (loggerId) => {
     logsStore.subscribers[loggerId]?.forEach((subscriber) => subscriber([...logsStore.logs[loggerId]]));
   },
-  registerContextExecutor: (loggerId, executor) => {
-    logsStore.contextExecutors[loggerId] = executor;
+  registerContextExecutor: (loggerId, executor, availableVariables) => {
+    logsStore.contextExecutors[loggerId] = { executor, availableVariables };
   },
   execute: (loggerId, toEval) => {
-    const executor = logsStore.contextExecutors[loggerId];
-    const executionLogger = makeLogger(loggerId);
-
-    if (!executor) {
+    if (!logsStore.contextExecutors[loggerId]) {
       throw new Error(`No context executor found for context "${loggerId}"`);
     }
+
+    const { executor } = logsStore.contextExecutors[loggerId];
+    const executionLogger = makeLogger(loggerId);
 
     try {
       const result = executor(toEval);
 
+      executionLogger.console.log(`> ${toEval}`);
       executionLogger.console.log(result);
     } catch (error) {
       executionLogger.console.error(error);
     }
+  },
+  getAvailableVariables: (loggerId) => {
+    if (!logsStore.contextExecutors[loggerId]) {
+      throw new Error(`No context executor found for context "${loggerId}"`);
+    }
+
+    const { availableVariables } = logsStore.contextExecutors[loggerId];
+
+    return availableVariables;
   },
 };
 

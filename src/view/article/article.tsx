@@ -1,48 +1,56 @@
 import './article.css';
 
+// @ts-ignore
 import * as asyncRoutes from '@setup/navigation/loaders.js';
-import resolveUrl from '@setup/navigation/resolveUrl.json';
 import React from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import usePromise from 'react-use-await';
+import { AwaitBoundary, useAwait } from 'react-use-await';
 
+import type { PortableViewSetup } from '../../core/configuration/configuration';
 import { useLocation } from '../navigation/utils';
-import { getMdxProps } from '../utils/mdxProps';
+import { getMdxProps, MdxProps } from '../utils/mdxProps';
+import { articleContext } from '../view';
 
-const loadArticle = (id: string) => (id in asyncRoutes ? asyncRoutes[id as keyof typeof asyncRoutes]() : undefined);
+const loadArticle = (id: string): Promise<{ __esDocsArticleView: React.FC<MdxProps>; __esDocsArticleSetup: PortableViewSetup }> =>
+  id in asyncRoutes ? asyncRoutes[id]() : undefined;
 
-const ArticleBody: React.FC<{ articleId: string }> = ({ articleId }) => {
-  const articleModule = usePromise(loadArticle, [articleId]);
-  const article = articleModule.default(getMdxProps());
+const ArticleBody: React.FC = () => {
+  const context = React.useContext(articleContext);
+  const articleModule = useAwait(loadArticle, context.articleId!);
+  const { __esDocsArticleView, __esDocsArticleSetup } = articleModule;
+  const articleView = React.useMemo(() => __esDocsArticleView(getMdxProps()), [__esDocsArticleView]);
 
-  return <>{article}</>;
+  React.useEffect(() => {
+    if (__esDocsArticleSetup !== context.articleViewSetup) {
+      context.setArticleViewSetup(__esDocsArticleSetup);
+    }
+  }, [__esDocsArticleSetup, context.articleViewSetup, context.setArticleViewSetup]);
+
+  return <>{articleView}</>;
 };
 
 export const Article: React.FC = () => {
-  const [location] = useLocation();
-  const articleId = resolveUrl[location];
+  const context = React.useContext(articleContext);
 
-  if (!articleId) {
+  if (!context.articleId) {
     return <>404</>;
   }
 
   return (
     <article className="es-docs__article">
-      <React.Suspense fallback={'Loading'}>
-        <ErrorBoundary
-          FallbackComponent={({ error }) => {
-            return (
-              <div>
-                <div>Error occured while rendering article</div>
-                <div>{error.message}</div>
-              </div>
-            );
-          }}
-          resetKeys={[articleId]}
-        >
-          <ArticleBody articleId={articleId} />
-        </ErrorBoundary>
-      </React.Suspense>
+      <ErrorBoundary
+        FallbackComponent={({ error }) => {
+          return (
+            <div>
+              <div>Error occured while rendering article</div>
+              <div>{error.message}</div>
+            </div>
+          );
+        }}
+        resetKeys={[context.articleId]}
+      >
+        <ArticleBody />
+      </ErrorBoundary>
     </article>
   );
 };

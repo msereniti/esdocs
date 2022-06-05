@@ -4,7 +4,7 @@ import cx from 'classnames';
 import copyToClipboard from 'copy-to-clipboard';
 import React from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import usePromise from 'react-use-await';
+import { AwaitBoundary, useAwait } from 'react-use-await';
 
 import { CodeViewer } from '../code/codeViewer';
 import { LoggerCounter } from '../logger/Counter';
@@ -16,7 +16,7 @@ import { PlaygroundRuntime } from './runtime/runtime';
 export const PlaygroundView: React.FC<{
   playgroundId: string;
 }> = ({ playgroundId }) => {
-  const { playground, initRuntime } = usePromise(loadPlayground, [playgroundId]);
+  const { playground, initRuntime } = useAwait(loadPlayground, playgroundId);
 
   const [consoleVisible, setConsoleVisible] = React.useState(false);
   const [visibleCodeEntry, setVisibleCodeEntry] = React.useState<CodeEntry | null>(null);
@@ -27,30 +27,28 @@ export const PlaygroundView: React.FC<{
   return (
     <div className="es-docs__playground">
       <div className="es-docs__playground-runtime">
-        <React.Suspense fallback={'Loading'}>
-          <ErrorBoundary
-            FallbackComponent={({ error, resetErrorBoundary }) => {
-              return (
-                <div>
-                  <div>Error occured while running playground</div>
-                  <div>{error.message}</div>
-                  <button onClick={resetErrorBoundary}>Try again</button>
-                </div>
-              );
-            }}
-            resetKeys={[playgroundId]}
-          >
-            <SandboxCss>
-              <PlaygroundRuntime initRuntime={initRuntime} />
-            </SandboxCss>
-          </ErrorBoundary>
-        </React.Suspense>
+        <ErrorBoundary
+          FallbackComponent={({ error, resetErrorBoundary }) => {
+            return (
+              <div>
+                <div>Error occured while running playground</div>
+                <div>{error.message}</div>
+                <button onClick={resetErrorBoundary}>Try again</button>
+              </div>
+            );
+          }}
+          resetKeys={[playgroundId]}
+        >
+          <SandboxCss>
+            <PlaygroundRuntime initRuntime={initRuntime} />
+          </SandboxCss>
+        </ErrorBoundary>
       </div>
       <div className="es-docs__playground-controls">
         <button onClick={toggleConsole} className="es-docs__playground-control-button">
           Console [<LoggerCounter loggerId={playgroundId} />]
         </button>
-        {playground.codeEntries.map((codeEntry) => (
+        {playground.codeEntries.map((codeEntry: any) => (
           <button
             key={codeEntry.path}
             onClick={getSourceCodeToggler(codeEntry)}

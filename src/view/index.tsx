@@ -1,17 +1,15 @@
-import './styles/index.css';
-
 import React from 'react';
+import ReactJsxRuntime from 'react/jsx-runtime';
+// @ts-ignore
 import { render } from 'react-dom';
 
-import { Article } from './article/article';
-import { Navigation } from './navigation/navigationView';
+(window as any).require = (moduleName: string) => {
+  if (moduleName === 'react') return React;
+  if (moduleName === 'react/jsx-runtime') return ReactJsxRuntime;
 
-render(
-  <div className="es-docs__root es-docs-layout">
-    <React.Suspense fallback="loading">
-      <Navigation />
-      <Article />
-    </React.Suspense>
-  </div>,
-  document.querySelector('#root')
-);
+  throw new Error(`External module ${moduleName} is not added to view root chunk`);
+};
+
+import { App } from './view';
+
+render(<App />, document.querySelector('#root'));

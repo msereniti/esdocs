@@ -1,0 +1,32 @@
+.es-docs__ts-inspector table {
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid #f8f6ff;
+}
+
+.es-docs__ts-inspector thead {
+  font-size: 18px;
+  color: #fff;
+  line-height: 1.4;
+  background-color: #8c95d8;
+  font-weight: 500;
+  padding: 10px 5px;
+}
+
+.es-docs__ts-inspector tbody {
+  max-height: 600px;
+  overflow: auto;
+}
+
+.es-docs__ts-inspector tr:nth-child(even) {
+  background-color: #f8f6ff;
+}
+
+.es-docs__ts-inspector td,
+.es-docs__ts-inspector th {
+  padding: 10px 5px;
+}
+
+.es-docs__ts-inspector .es-docs__ts-inspector-required-prop {
+  color: red;
+}

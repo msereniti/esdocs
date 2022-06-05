@@ -1,0 +1,40 @@
+
+import { TsInspector } from 'esdocs'
+import { ButtonProps } from './button'
+
+# Button component
+
+This is button component.
+
+### Example of usage
+
+```json button-config.json
+{
+  "text": "Button text"
+}
+```
+
+```tsx test.tsx
+import { Button as PureComponent } from './button';
+import buttonConfig from './button-config.json'
+
+
+<div>
+  <PureComponent>{buttonConfig.text}</PureComponent>
+</div>
+```
+
+```css
+button {
+  background: #656fbb;
+  color: white;
+  border: none;
+  border-radius: 2px;
+  padding: 5px
+}
+```
+
+
+### Button properties
+
+<TsInspector inspect={structOf(ButtonProps)} />

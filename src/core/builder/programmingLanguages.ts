@@ -1,7 +1,7 @@
-import { writeFile } from 'fs/promises';
+// @ts-ignore
 import * as SyntaxHighlighter from 'react-syntax-highlighter';
 
-import { resolvePath } from '../utils/fs';
+import { esDocsFs } from '../utils/fs';
 
 const defaultAliases: Record<string, string> = {
   ino: 'arduino',
@@ -97,7 +97,7 @@ const defaultAliases: Record<string, string> = {
   xeoracube: 'xeora',
 };
 
-const supportedProgrammingLanguagesMap = Object.fromEntries(SyntaxHighlighter.Prism.supportedLanguages.map((language) => [language, true]));
+const supportedProgrammingLanguagesMap = Object.fromEntries(SyntaxHighlighter.Prism.supportedLanguages.map((language: any) => [language, true]));
 
 export const bundleProgrammingLanguagesFiles = async (providedProgrammingLanguages: string[], destinationPath: string) => {
   /** TBD: add to configuration */
@@ -134,14 +134,17 @@ export const bundleProgrammingLanguagesFiles = async (providedProgrammingLanguag
   //   )
   // );
 
-  await writeFile(resolvePath(destinationPath, 'syntaxes.js'), programmingLanguages.map((language) => `export * as ${language} from 'refractor/lang/${language}';`).join('\n'));
+  await esDocsFs.writeOutputFile(
+    esDocsFs.resolvePath(destinationPath, 'syntaxes.js'),
+    programmingLanguages.map((language) => `export * as ${language} from 'refractor/lang/${language}';`).join('\n')
+  );
 
   const themes = ['vs', 'vs-dark'];
 
   /** TBD: add ability for async loading themes */
 
-  await writeFile(
-    resolvePath(destinationPath, 'themes.js'),
+  await esDocsFs.writeOutputFile(
+    esDocsFs.resolvePath(destinationPath, 'themes.js'),
     themes
       .map((theme) => {
         const varName = theme.replace(/\W/g, '_');

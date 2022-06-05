@@ -1,7 +1,7 @@
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 
-import { assembleNavigationTree, collapseIntermediatePaths, cutRelativePaths, findLabel } from './navigation';
+import { assembleNavigationTree, collapseIntermediatePaths, cutRelativePaths, findLabel } from './navigation.old';
 
 test('navigation/utils/cutRelativePaths/multiple', () => {
   assert.equal(

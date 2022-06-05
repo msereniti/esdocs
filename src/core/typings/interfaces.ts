@@ -1,15 +1,16 @@
 import ts from 'typescript';
 
-import { extractDependenciesList, serializeProperty, serializeTsNode } from './serializer';
+import { extractDependenciesList, SerializedNode, serializeProperty, serializeTsNode } from './serializer';
+import { SerializedType } from './typings';
 
-export const serializeInterfaceDeclaration = (interfaceDeclaration: ts.InterfaceDeclaration) => {
+export const serializeInterfaceDeclaration = (interfaceDeclaration: ts.InterfaceDeclaration): SerializedType => {
   const name = interfaceDeclaration.name.escapedText as string;
-  const genericsMap = {};
+  const genericsMap: Record<string, SerializedNode> = {};
   const inheritance = (interfaceDeclaration.heritageClauses ?? [])
     .map((clause) =>
       clause.types.map((type) => ({
-        referenceTo: type.expression.escapedText,
-        displayText: type.expression.escapedText,
+        referenceTo: (type.expression as ts.Identifier).escapedText as string,
+        displayText: (type.expression as ts.Identifier).escapedText as string,
       }))
     )
     .flat();
@@ -24,7 +25,7 @@ export const serializeInterfaceDeclaration = (interfaceDeclaration: ts.Interface
       const { constraint, name } = child as ts.TypeParameterDeclaration & {
         name: { escapedText: string };
       };
-      const computedChild = serializeTsNode(constraint, genericsMap);
+      const computedChild = serializeTsNode(constraint!, genericsMap);
 
       genericsMap[name.escapedText] = computedChild;
       dependencies.push(...extractDependenciesList(computedChild));

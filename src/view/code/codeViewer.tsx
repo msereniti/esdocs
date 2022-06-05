@@ -1,8 +1,12 @@
 import './codeViewer.css';
 
+// @ts-ignore
 import * as programmingLanguages from '@setup/programmingLanguages/syntaxes.js';
+// @ts-ignore
 import * as themes from '@setup/programmingLanguages/themes.js';
 import React from 'react';
+
+// @ts-ignore
 import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-async-light';
 
 for (const language in programmingLanguages) {
@@ -10,6 +14,7 @@ for (const language in programmingLanguages) {
 
   SyntaxHighlighter.registerLanguage(language, languageDefinition);
 }
+
 
 export const CodeViewer: React.FC<{ language: string; sourceCode: string }> = ({ language, sourceCode }) => {
   const style = React.useMemo(() => {

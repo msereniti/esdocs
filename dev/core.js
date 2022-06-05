@@ -8,6 +8,8 @@ esbuild({
   sourcemap: true,
   platform: 'node',
   outdir: resolvePath('dist/dev'),
+  format: 'esm',
   logLevel: 'warning',
   plugins: [],
+  target: 'esnext',
 }).catch(() => process.exit(1));

@@ -1,7 +1,6 @@
-import { readdir, stat } from 'fs/promises';
 import { sep } from 'path';
 
-import { pathExists, resolvePath } from './fs';
+import { esDocsFs } from './fs';
 
 type Filter = {
   startsWith?: string | string[];
@@ -11,7 +10,7 @@ type Filter = {
 type FSPath = string;
 
 export const recursiveReadDir = async (rootDir: string, filter?: Filter, maxDepth = Infinity): Promise<FSPath[]> => {
-  if (!(await pathExists(resolvePath(rootDir)))) return [];
+  if (!(await esDocsFs.exists(esDocsFs.resolvePath(rootDir)))) return [];
 
   const result: FSPath[] = [];
   const resolvedTasks = new Map<FSPath, true>();
@@ -20,9 +19,9 @@ export const recursiveReadDir = async (rootDir: string, filter?: Filter, maxDept
   const createTask = (path: FSPath, depth = 1) => ({
     path,
     work: (async () => {
-      const names = await readdir(path);
+      const names = await esDocsFs.readDir(path);
       const entities = names.map((name) => ({
-        path: resolvePath(path, name),
+        path: esDocsFs.resolvePath(path, name),
         name,
       }));
 
@@ -31,7 +30,7 @@ export const recursiveReadDir = async (rootDir: string, filter?: Filter, maxDept
         process.exit();
       }
 
-      const stats = await Promise.all(entities.map(({ path }) => stat(path)));
+      const stats = await Promise.all(entities.map(({ path }) => esDocsFs.stat(path)));
 
       const files = entities
         .filter((_, index) => stats[index].isFile())
@@ -65,7 +64,7 @@ export const recursiveReadDir = async (rootDir: string, filter?: Filter, maxDept
     })(),
   });
 
-  tasks.push(createTask(resolvePath(rootDir)));
+  tasks.push(createTask(esDocsFs.resolvePath(rootDir)));
 
   while (tasks.length > 0) {
     await Promise.all(tasks.map((task) => task.work));

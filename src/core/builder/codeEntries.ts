@@ -1,9 +1,9 @@
-import fs from 'fs-extra';
 import { basename as resolvePathBasename } from 'path';
 import { SourceMapConsumer } from 'source-map';
 
-import { outOfTheBoxFrameworks } from '../../integrations/frameworks/frameworks';
-import { fsExists, readFile, readJSON, removeFile, resolvePath, writeFile } from '../utils/fs';
+import { EsDocsFrameworkIntegration, outOfTheBoxFrameworks } from '../../integrations/frameworks/frameworks';
+import { getAllConfigurations, getConfiguration } from '../configuration/configuration';
+import { esDocsFs } from '../utils/fs';
 import { parentDir } from '../utils/parentDir';
 import { runBundler } from './bundler';
 // import { cleanUp } from './cleanUp';
@@ -25,7 +25,7 @@ export const precompilePlaygroundCodeEntries = async (playgrounds: Playground[])
         const fileName = file.name ?? tmpFileName;
 
         return {
-          path: resolvePath(parentDir(file.source.path), fileName),
+          path: esDocsFs.resolvePath(parentDir(file.source.path), fileName),
           details: file,
         };
       });
@@ -34,7 +34,7 @@ export const precompilePlaygroundCodeEntries = async (playgrounds: Playground[])
         await Promise.all(
           files.map(async (file) => ({
             file,
-            pathReserved: await fsExists(file.path),
+            pathReserved: await esDocsFs.exists(file.path),
           }))
         )
       )
@@ -52,7 +52,15 @@ export const precompilePlaygroundCodeEntries = async (playgrounds: Playground[])
         throw new Error(message);
       }
 
-      await Promise.all(files.map((file) => writeFile(file.path, file.details.content)));
+      for (const file of files) {
+        let content = file.details.content;
+        const { globals } = getConfiguration(file.path);
+        if (file.path.endsWith('.js') && Object.keys(globals).length > 0) {
+          const prepand = `const { ${Object.keys(globals).join(', ')} } = ${JSON.stringify(globals)};\n`;
+          content = prepand + content;
+        }
+        esDocsFs.putTmpFileWrite(file.path, content);
+      }
 
       return files.map((file, index) => ({
         playgroundId: playground.id,
@@ -69,8 +77,15 @@ export const precompilePlaygroundCodeEntries = async (playgrounds: Playground[])
 
 export const buildPlaygroundCodeEntries = async (playgrounds: Playground[], destinationDirectoryPath: string, sourceDirectoryPath: string) => {
   const bundlerEntryPoints = await precompilePlaygroundCodeEntries(playgrounds);
-  const codeEntriesOutputDir = resolvePath(destinationDirectoryPath, 'codeEntries');
-  const frameworks = outOfTheBoxFrameworks;
+  const codeEntriesOutputDir = esDocsFs.resolvePath(destinationDirectoryPath, 'assets');
+
+  const configurations = getAllConfigurations();
+  const frameworks: { [frameworkName: string]: EsDocsFrameworkIntegration } = { ...outOfTheBoxFrameworks };
+  for (const config of configurations) {
+    for (const frameworkName in config?.contents.frameworks || {}) {
+      frameworks[frameworkName] = (config?.contents.frameworks || {})[frameworkName];
+    }
+  }
 
   const entryPointsByFramework = bundlerEntryPoints.reduce(
     (acc, entryPoint) => ({
@@ -82,11 +97,13 @@ export const buildPlaygroundCodeEntries = async (playgrounds: Playground[], dest
     }
   );
 
+  await esDocsFs.commitTmps();
+
   const codeEntriesChunks = (
     await Promise.all(
       Object.entries(entryPointsByFramework).map(([frameworkName, entryPoints]) => {
         if (!(frameworkName in frameworks)) {
-          throw new Error(`Framework ${frameworkName} is not defined`);
+          throw new Error(`Framework ${frameworkName} is not configurated`);
         }
         const framework = frameworks[frameworkName as keyof typeof frameworks];
         const entryPointsMap = Object.fromEntries(entryPoints.map(({ filePath, entryId }) => [entryId, filePath]));
@@ -101,21 +118,16 @@ export const buildPlaygroundCodeEntries = async (playgrounds: Playground[], dest
     )
   ).flat();
 
-  await Promise.all(bundlerEntryPoints.map(({ filePath }) => removeFile(filePath)));
-
-  // await cleanUp(sourceDirectoryPath, tmpFilesPrefix);
+  await Promise.all(bundlerEntryPoints.map(({ filePath }) => esDocsFs.putTmpFileRemove(filePath)));
 
   const entryPointsByEntryId = Object.fromEntries(bundlerEntryPoints.map((entryPoint) => [entryPoint.entryId, entryPoint]));
   const outputPaths: { [playgroundId: string]: string[] } = {};
-  const hasSourceMaps: { [playgroundId: string]: boolean[] } = {};
 
   for (const chunk of codeEntriesChunks) {
     const entryPoint = entryPointsByEntryId[chunk.id];
 
     outputPaths[entryPoint.playgroundId] = outputPaths[entryPoint.playgroundId] || [];
     outputPaths[entryPoint.playgroundId][entryPoint.playgroundCodeEntryIndex] = resolvePathBasename(chunk.chunkFilePath);
-    hasSourceMaps[entryPoint.playgroundId] = hasSourceMaps[entryPoint.playgroundId] || [];
-    hasSourceMaps[entryPoint.playgroundId][entryPoint.playgroundCodeEntryIndex] = chunk.hasSourceMaps;
   }
 
   const playgroundFiles = playgrounds.map((playground) => ({
@@ -129,108 +141,10 @@ export const buildPlaygroundCodeEntries = async (playgrounds: Playground[], dest
       },
       path: outputPaths[playground.id][index],
       sourceCode: file.content,
-      hasSourceMaps: hasSourceMaps[playground.id][index],
     })),
   }));
 
-  // await Promise.all(
-  //   playgroundFiles.map(({ codeEntries }) =>
-  //     Promise.all(
-  //       codeEntries.map(async (codeEntry) => {
-  //         if (!codeEntry.hasSourceMaps) return;
-  //         const compiledCodePath = resolvePath(codeEntriesOutputDir, codeEntry.path);
-  //         const compiledCode = await readFile(compiledCodePath, 'utf-8');
-  //         const lines = compiledCode.split('\n');
+  const playgroundsOutputDir = esDocsFs.resolvePath(destinationDirectoryPath, 'playgrounds');
 
-  //         for (let i = lines.length - 1; i >= 0; i--) {
-  //           if (lines[i].startsWith('//# sourceMappingURL=')) {
-  //             const sourceMapFileName = lines[i].substring('//# sourceMappingURL='.length);
-  //             const sourceMapFilePath = resolvePath(codeEntriesOutputDir, sourceMapFileName);
-  //             const sourceMap = await readJSON(sourceMapFilePath);
-
-  //             const whatever = await SourceMapConsumer.with(sourceMap, null, (consumer) => {
-  //               consumer.eachMapping((mapping) => {
-  //                 // consumer.allGeneratedPositionsFor(mapping);
-  //                 // const position = consumer.originalPositionFor({
-  //                 //   line: mapping.generatedLine,
-  //                 //   column: mapping.generatedColumn,
-  //                 // });
-
-  //                 // console.log(mapping);
-  //                 const sourceCode = consumer.sourceContentFor(mapping.source);
-  //                 const originalLine = sourceCode!.split('\n')[mapping.originalLine - 1];
-  //                 const generatedLine = compiledCode
-  //                   .split('\n')
-  //                   [mapping.generatedLine - 1].substring(mapping.generatedColumn);
-
-  //                 if (generatedLine.includes('c')) {
-  //                   // if (generatedLine.startsWith('var')) {
-  //                   console.log(originalLine.substring(mapping.originalColumn));
-  //                   console.log(generatedLine);
-  //                   console.log('---');
-  //                 }
-
-  //                 // if (mapping.originalColumn === 71) {
-  //                 //   console.log(consumer.sources);
-  //                 //   console.log(mapping);
-  //                 //   console.log(codeEntry.path);
-  //                 //   console.log(originalLine.substring(mapping.originalColumn));
-  //                 //   console.log(generatedLine);
-  //                 //   console.log('---');
-  //                 //   console.log(compiledCode);
-  //                 // }
-  //               });
-  //               // consumer.allGeneratedPositionsFor();
-  //               // // [ 'http://example.com/www/js/one.js',
-  //               // //   'http://example.com/www/js/two.js' ]
-
-  //               // console.log(
-  //               //   consumer.originalPositionFor({
-  //               //     line: 2,
-  //               //     column: 28,
-  //               //   })
-  //               // );
-  //               // // { source: 'http://example.com/www/js/two.js',
-  //               // //   line: 2,
-  //               // //   column: 10,
-  //               // //   name: 'n' }
-
-  //               // console.log(
-  //               //   consumer.generatedPositionFor({
-  //               //     source: 'http://example.com/www/js/two.js',
-  //               //     line: 2,
-  //               //     column: 10,
-  //               //   })
-  //               // );
-  //               // // { line: 2, column: 28 }
-
-  //               // consumer.eachMapping((m) => {
-  //               //   // ...
-  //               // });
-
-  //               // console.log(consumer);
-  //             });
-
-  //             return;
-  //           } else if (lines[i].length > 0) {
-  //             return;
-  //           }
-  //         }
-
-  //         // await writeFile(compiledCodePath, lines.join('\n'));
-  //         // const compiledCodeSOurceMapLine = lines.
-  //         // const codeLastLine = compiledCode.split('\n').filter(Boolean).pop();
-  //         // if (codeLastLine)
-  //       })
-  //     )
-  //   )
-  // );
-
-  const playgroundsOutputDir = resolvePath(destinationDirectoryPath, 'playgrounds');
-
-  await fs.ensureDir(playgroundsOutputDir);
-
-  await Promise.all(playgroundFiles.map((file) => fs.writeJSON(resolvePath(playgroundsOutputDir, `${file.id}.json`), file)));
-
-  // await emptyDir(resolvePath(destinationDirectoryPath, 'setup'));
+  await Promise.all(playgroundFiles.map((file) => esDocsFs.writeOutputJson(esDocsFs.resolvePath(playgroundsOutputDir, `${file.id}.json`), file)));
 };

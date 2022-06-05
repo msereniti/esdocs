@@ -20,17 +20,11 @@ esbuild
         if (status !== 200) {
           main += `:${status}`;
         }
-        const message =
-          colors.gray(before) +
-          (status === 200 ? colors.green(main) : colors.red(main)) +
-          colors.gray(after);
+        const message = colors.gray(before) + (status === 200 ? colors.green(main) : colors.red(main)) + colors.gray(after);
 
         console.info(message);
       },
     },
-    getEsbuildConfigBase(
-      [resolvePath('./src/view/index.jsx')],
-      resolvePath('./dist/demo/view')
-    )
+    getEsbuildConfigBase([resolvePath('./src/view/index.jsx')], resolvePath('./dist/demo/view'))
   )
   .then(() => console.info(`Started on http://localhost:${port}`));

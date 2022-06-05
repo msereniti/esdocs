@@ -9,7 +9,8 @@ export const getEsbuildConfigBase = (entryPoints, outdir) => ({
   bundle: true,
   sourcemap: true,
   logLevel: 'warning',
-  external: ['source-map'],
+  platform: 'browser',
+  external: ['source-map', 'esdocs'],
   plugins: [
     {
       name: 'esdocs-setup-resolver',

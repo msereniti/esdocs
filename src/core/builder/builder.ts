@@ -1,93 +1,83 @@
 import { build as esbuild } from 'esbuild';
-import { ensureDir } from 'fs-extra';
 
-import { emptyDir, resolvePath } from '../utils/fs';
+import { getEsbuildConfigBase } from '../../view/esbuildConfigBase';
+import { setupConfiguration } from '../configuration/configuration';
+import { esDocsFs } from '../utils/fs';
+import { logger } from '../utils/logger';
 import { recursiveReadDir } from '../utils/recursive-readdir';
-import { cleanUp } from './cleanUp';
 import { buildPlaygroundCodeEntries } from './codeEntries';
 import { collectArticles } from './collectArticles';
-import { Playground, tmpFilesPrefix } from './definitions';
+import { Playground } from './definitions';
 import { setupFrameworks } from './framework';
 import { getMdxHandler } from './handleMdx';
-import { buildHost } from './host';
+import { buildHost, setupHost } from './host';
 import { buildNavigation } from './navigation/navigation';
 import { bundleProgrammingLanguagesFiles } from './programmingLanguages';
 import { buildView } from './view';
 
 const runBuild = async (sourceDirectoryPath: string, destinationDirectoryPath: string) => {
-  /** Building articles */
-
   const programmingLanguages: string[] = [];
   const playgrounds: Playground[] = [];
   const articlesLabelsByPath: Record<string, string> = {};
 
+  logger.verbose('Collecting article files');
   const articles = await collectArticles(sourceDirectoryPath);
+  logger.verbose(`Collected ${articles.length} article files`);
 
-  const articlesDestPath = resolvePath(destinationDirectoryPath, 'articles');
+  const articlesDestPath = esDocsFs.resolvePath(destinationDirectoryPath, 'articles');
+
+  logger.verbose('Running articles building');
 
   await esbuild({
     entryPoints: articles,
-    plugins: [
-      getMdxHandler({
-        playgrounds,
-        articlesLabelsByPath,
-        programmingLanguages,
-      }),
-    ],
+    plugins: [getMdxHandler({ playgrounds, articlesLabelsByPath, programmingLanguages }), ...getEsbuildConfigBase([], articlesDestPath).plugins!],
     bundle: true,
     outdir: articlesDestPath,
     format: 'esm',
-    external: ['react'],
-  });
-  const bundledArticles = await recursiveReadDir(articlesDestPath, {
-    endsWith: '.js',
+    external: ['react', 'react-dom', 'esdocs'],
   });
 
-  /** Building playgrounds */
+  logger.verbose('Collecting built articles');
+
+  const bundledArticles = await recursiveReadDir(articlesDestPath, { endsWith: '.js' });
+
+  logger.verbose(`Collected ${bundledArticles.length} built articles`);
 
   await buildPlaygroundCodeEntries(playgrounds, destinationDirectoryPath, sourceDirectoryPath);
 
-  /** Building navigation */
-  await ensureDir(resolvePath(destinationDirectoryPath, 'setup', 'navigation'));
+  await buildNavigation({ rawArticles: articles, bundledArticles, articlesLabelsByPath }, esDocsFs.resolvePath(destinationDirectoryPath, 'setup', 'navigation'));
+  await bundleProgrammingLanguagesFiles(programmingLanguages, esDocsFs.resolvePath(destinationDirectoryPath, 'setup', 'programmingLanguages'));
+  await setupFrameworks(esDocsFs.resolvePath(destinationDirectoryPath, 'setup', 'frameworks'));
+  await setupHost(esDocsFs.resolvePath(destinationDirectoryPath, 'setup', 'host'));
+  await esDocsFs.commitOutputWrites(destinationDirectoryPath);
 
-  await buildNavigation(
-    {
-      rawArticles: articles,
-      bundledArticles,
-      articlesLabelsByPath,
-    },
-    resolvePath(destinationDirectoryPath, 'setup', 'navigation')
-  );
-
-  /** Setup syntax highlight for programming languages */
-
-  await ensureDir(resolvePath(destinationDirectoryPath, 'setup', 'programmingLanguages'));
-
-  await bundleProgrammingLanguagesFiles(programmingLanguages, resolvePath(destinationDirectoryPath, 'setup', 'programmingLanguages'));
-
-  /** Setup frameworks */
-
-  await ensureDir(resolvePath(destinationDirectoryPath, 'setup', 'frameworks'));
-
-  await setupFrameworks(resolvePath(destinationDirectoryPath, 'setup', 'frameworks'));
-
-  /** Build view and host */
-
-  await buildView(resolvePath(destinationDirectoryPath, 'view'));
-
+  await buildView(esDocsFs.resolvePath(destinationDirectoryPath, 'view'));
   await buildHost(destinationDirectoryPath);
+  await esDocsFs.commitOutputWrites(destinationDirectoryPath);
 };
 
-export const builder = async (sourceDirectoryPath: string, destinationDirectoryPath = './dist/demo') => {
-  await emptyDir(destinationDirectoryPath);
-
+export const builder = async (sourceDirectoryPath: string, destinationDirectoryPath = esDocsFs.resolvePath(process.cwd(), './dist/demo')) => {
   try {
+    await setupConfiguration();
+    logger.verbose('Clearing output directory');
+    await esDocsFs.clearOutputDir(destinationDirectoryPath);
+    logger.verbose('Running builder');
     await runBuild(sourceDirectoryPath, destinationDirectoryPath);
-    await cleanUp(sourceDirectoryPath, tmpFilesPrefix);
+    await esDocsFs.clearTmps();
   } catch (error) {
-    /* TBD: added graceful shutdown common mechanism */
-    await cleanUp(sourceDirectoryPath, tmpFilesPrefix);
+    await esDocsFs.clearTmps();
 
     throw error;
   }
 };
+
+const gracefulShutdownHandler = () => {
+  logger.info('\nCleaning up tmp files...');
+  esDocsFs.clearTmps().then(() => {
+    logger.info('Cleaning up tmp files done.');
+    process.exit(1);
+  });
+};
+
+process.on('SIGTERM', gracefulShutdownHandler);
+process.on('SIGINT', gracefulShutdownHandler);
